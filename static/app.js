@@ -1,3 +1,24 @@
+
+function updateSliderVisuals(slider) {
+  if (!slider) return;
+  const pct = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+  slider.style.setProperty('--track-fill', `${pct}%`);
+  updateGaugeDisplay();
+}
+
+function updateGaugeDisplay() {
+  const angles = [];
+  for (let i = 0; i < SERVO_COUNT; i++) {
+    const s = el(`slider${i}`);
+    if (s) angles.push(Number(s.value));
+  }
+  if (angles.length) {
+    const avg = Math.round(angles.reduce((a, b) => a + b, 0) / angles.length);
+    const gText = el("gaugeAngleText");
+    if (gText) gText.textContent = `${avg}°`;
+  }
+}
+
 "use strict";
 
 const SERVO_COUNT = 5;
@@ -31,6 +52,14 @@ function setConnectionState(isConnected, port, message) {
   setConnectionState.previous = connected; connectionKnown = true;
   if (message && !connected) showMessage(message);
   updateControls();
+  for (let i = 0; i < SERVO_COUNT; i++) {
+    const s = el(`slider${i}`);
+    if (s) {
+      updateSliderVisuals(s);
+      s.addEventListener('input', () => updateSliderVisuals(s));
+    }
+  }
+
 }
 function updateControls() {
   for (let i = 0; i < SERVO_COUNT; i += 1) {
@@ -45,7 +74,7 @@ async function updateStatus() {
   try {
     const response = await fetch("/api/status", { cache: "no-store" }); if (!response.ok) throw new Error(`Status request failed (${response.status})`);
     const data = await response.json(); stopped = Boolean(data.stopped); setConnectionState(data.connected, data.port, data.message);
-    if (Array.isArray(data.angles)) data.angles.forEach((angle, i) => { if (document.activeElement !== el(`slider${i}`)) el(`slider${i}`).value = angle; el(`angle${i}`).textContent = `${angle}°`; });
+    if (Array.isArray(data.angles)) data.angles.forEach((angle, i) => { const sl = el(`slider${i}`); if (document.activeElement !== sl) { sl.value = angle; updateSliderVisuals(sl); } el(`angle${i}`).textContent = `${angle}°`; });
     if (Array.isArray(data.enabled)) data.enabled.forEach((enabled, i) => { el(`enable${i}`).checked = enabled; });
     if (!connected) showMessage(data.message || "Arduino is offline. Camera and gallery work without the hand controller.");
   } catch (_) { stopped = false; setConnectionState(false, "—", "Cannot reach Flask server. Check that it is running."); showMessage("Cannot reach Flask server. Check the server window."); }
@@ -176,12 +205,12 @@ function toggleAudio() { audioEnabled=!audioEnabled;const b=el("audioToggle");b.
 
 for (let i=0;i<SERVO_COUNT;i+=1) {
   const slider=el(`slider${i}`), checkbox=el(`enable${i}`);
-  slider.addEventListener("input",()=>{const angle=Number(slider.value);el(`angle${i}`).textContent=`${angle}°`;clearTimeout(sliderTimers[i]);if(!stopped&&checkbox.checked)sliderTimers[i]=setTimeout(async()=>{try{const result=await sendAction("SET",{index:i,angle});if(result.queued)showMessage(`Saved ${["Thumb","Index","Middle","Ring","Little"][i]} at ${angle}°. It will sync when Arduino connects.`);}catch(error){showMessage(error.message);}},110);});
+  slider.addEventListener("input",()=>{const angle=Number(slider.value);el(`angle${i}`).textContent=`${angle}°`;updateSliderVisuals(slider);clearTimeout(sliderTimers[i]);if(!stopped&&checkbox.checked)sliderTimers[i]=setTimeout(async()=>{try{const result=await sendAction("SET",{index:i,angle});if(result.queued)showMessage(`Saved ${["Thumb","Index","Middle","Ring","Little"][i]} at ${angle}°. It will sync when Arduino connects.`);}catch(error){showMessage(error.message);}},110);});
   checkbox.addEventListener("change",async()=>{try{const result=await sendAction("ENABLE",{index:i,enabled:checkbox.checked});updateControls();if(result.queued)showMessage("Finger enable setting saved; it will sync when Arduino connects.");}catch(error){checkbox.checked=!checkbox.checked;showMessage(error.message);}});
 }
 el("audioToggle").addEventListener("click",toggleAudio);el("cameraToggle").addEventListener("click",toggleCamera);el("captureButton").addEventListener("click",captureSnapshot);
 el("fullscreenButton").addEventListener("click",()=>{const p=el("cameraPanel");if(!document.fullscreenElement)p.requestFullscreen?.();else document.exitFullscreen?.();});
 el("graspButton").addEventListener("click",grabDetectedObject);el("openButton").addEventListener("click",()=>runCommand("OPEN","Opening hand."));el("closeButton").addEventListener("click",()=>runCommand("CLOSE","Closing hand."));el("stopButton").addEventListener("click",()=>runCommand("STOP","Emergency stop sent."));el("releaseButton").addEventListener("click",()=>runCommand("RELEASE","Servo signals released."));
-el("resetButton").addEventListener("click",async()=>{for(let i=0;i<SERVO_COUNT;i+=1){el(`slider${i}`).value=90;el(`angle${i}`).textContent="90°";}await runCommand("OPEN","Finger positions reset to open.");});
+el("resetButton").addEventListener("click",async()=>{for(let i=0;i<SERVO_COUNT;i+=1){el(`slider${i}`).value=90;el(`angle${i}`).textContent="90°";updateSliderVisuals(el(`slider${i}`));}await runCommand("OPEN","Finger positions reset to open.");});
 el("galleryFilter").addEventListener("change",renderGallery);el("galleryAll").addEventListener("click",()=>{el("galleryFilter").value="all";renderGallery();});
 updateStatus();loadGallery();setInterval(updateStatus,STATUS_INTERVAL_MS);

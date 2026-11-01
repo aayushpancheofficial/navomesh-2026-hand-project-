@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3f7ff"><title>NAVONMESH 26 · Prosthetic Hand Control</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=15">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=16">
 </head>
 <body>
 <main class="app-shell">
@@ -143,9 +143,140 @@
   </section>
 
   <section class="card servo-card">
-    <div class="section-head"><div class="title-wrap"><span class="section-icon">⚙</span><div><h2>Servo Motor Control</h2><p>Fine tune now; saved positions sync when Arduino connects</p></div></div></div>
-    <div class="servo-layout"><div id="servoControls" class="servo-list">{% for name in ['Thumb', 'Index', 'Middle', 'Ring', 'Little'] %}{% set i = loop.index0 %}<div class="servo-row"><span class="finger-icon">♧</span><label for="slider{{ i }}">{{ name }}</label><input type="range" min="0" max="180" value="90" id="slider{{ i }}" aria-label="{{ name }} servo angle"><output id="angle{{ i }}">90°</output><span class="servo-range">0° – 180°</span><input type="checkbox" id="enable{{ i }}" checked aria-label="Enable {{ name }} servo"></div>{% endfor %}</div><aside class="range-card"><strong>Position range</strong><b>0°–180°</b><small>Adjust each finger independently</small></aside></div>
-    <div class="movement-controls"><button id="closeButton" class="button secondary" disabled><span>Close Hand</span></button><button id="openButton" class="button primary open-hand" disabled><span>Open Hand</span></button><button id="resetButton" class="button secondary" disabled>↻ <span>Reset</span></button></div>
+    <div class="section-head">
+      <div class="title-wrap">
+        <span class="servo-header-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L22 12"/><path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L22 17"/></svg>
+        </span>
+        <div>
+          <h2>Servo Motor Control</h2>
+          <p>Control each finger’s servo angle (0° – 180°)</p>
+        </div>
+      </div>
+      <span class="servo-range-badge">Range : 0° – 180°</span>
+    </div>
+
+    <div class="servo-layout">
+      <div id="servoControls" class="servo-list">
+        {% for name in ['Thumb', 'Index', 'Middle', 'Ring', 'Little'] %}
+        {% set i = loop.index0 %}
+        {% set num = ['01', '02', '03', '04', '05'][i] %}
+        <div class="servo-row">
+          <span class="finger-num">{{ num }}</span>
+          <label for="slider{{ i }}" class="finger-label">{{ name }}</label>
+          <div class="slider-wrapper">
+            <input type="range" min="0" max="180" value="90" id="slider{{ i }}" aria-label="{{ name }} servo angle" class="custom-slider">
+          </div>
+          <output id="angle{{ i }}" class="angle-badge">90°</output>
+          <label class="toggle-switch" title="Enable/Disable {{ name }} servo">
+            <input type="checkbox" id="enable{{ i }}" checked aria-label="Enable {{ name }} servo">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+
+      <aside class="hand-gauge-card">
+        <div class="gauge-angle-display">
+          <span id="gaugeAngleText">180°</span>
+        </div>
+        <div class="gauge-visual-wrap">
+          <svg class="gauge-arc-svg" viewBox="0 0 200 120" width="100%">
+            <defs>
+              <linearGradient id="arcGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#38bdf8" />
+                <stop offset="50%" stop-color="#0066ff" />
+                <stop offset="100%" stop-color="#2563eb" />
+              </linearGradient>
+            </defs>
+            <path d="M 22 110 A 78 78 0 0 1 178 110" fill="none" stroke="#e2e8f0" stroke-width="5" stroke-linecap="round"/>
+            <path id="gaugeArcFill" d="M 22 110 A 78 78 0 0 1 178 110" fill="none" stroke="url(#arcGradient)" stroke-width="5" stroke-linecap="round" stroke-dasharray="3, 5"/>
+            <text x="14" y="117" fill="#64748b" font-size="11" font-weight="700">0°</text>
+            <text x="166" y="117" fill="#64748b" font-size="11" font-weight="700">180°</text>
+          </svg>
+
+          <div class="robotic-hand-illustration">
+            <svg width="120" height="130" viewBox="0 0 120 135" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="25" y="66" width="70" height="48" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+              <rect x="33" y="72" width="54" height="34" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
+              <rect x="37" y="114" width="46" height="18" rx="6" fill="#1e293b"/>
+              <circle cx="48" cy="123" r="4" fill="#0066ff"/>
+              <circle cx="60" cy="123" r="4" fill="#0066ff"/>
+              <circle cx="72" cy="123" r="4" fill="#0066ff"/>
+              
+              <!-- Thumb -->
+              <g class="hand-finger" id="gfxThumb">
+                <rect x="10" y="68" width="16" height="18" rx="6" transform="rotate(-30 10 68)" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+                <circle cx="16" cy="76" r="2.5" fill="#1e293b"/>
+                <rect x="2" y="54" width="14" height="18" rx="5" transform="rotate(-35 2 54)" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+              </g>
+
+              <!-- Index -->
+              <g class="hand-finger" id="gfxIndex">
+                <rect x="32" y="42" width="13" height="26" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+                <rect x="34" y="52" width="9" height="3" rx="1" fill="#1e293b"/>
+                <rect x="32" y="18" width="13" height="24" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+                <rect x="34" y="28" width="9" height="3" rx="1" fill="#1e293b"/>
+              </g>
+
+              <!-- Middle -->
+              <g class="hand-finger" id="gfxMiddle">
+                <rect x="49" y="36" width="13" height="32" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+                <rect x="51" y="48" width="9" height="3" rx="1" fill="#1e293b"/>
+                <rect x="49" y="10" width="13" height="26" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+                <rect x="51" y="22" width="9" height="3" rx="1" fill="#1e293b"/>
+              </g>
+
+              <!-- Ring -->
+              <g class="hand-finger" id="gfxRing">
+                <rect x="66" y="42" width="13" height="26" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+                <rect x="68" y="52" width="9" height="3" rx="1" fill="#1e293b"/>
+                <rect x="66" y="20" width="13" height="22" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+                <rect x="68" y="30" width="9" height="3" rx="1" fill="#1e293b"/>
+              </g>
+
+              <!-- Little -->
+              <g class="hand-finger" id="gfxLittle">
+                <rect x="83" y="50" width="12" height="22" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+                <rect x="85" y="58" width="8" height="3" rx="1" fill="#1e293b"/>
+                <rect x="83" y="32" width="12" height="18" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+                <rect x="85" y="40" width="8" height="3" rx="1" fill="#1e293b"/>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="movement-controls">
+      <button id="closeButton" class="button secondary close-hand-btn" disabled>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 11V5a2 2 0 0 1 4 0v6"/>
+          <path d="M15 11V6a2 2 0 0 1 4 0v6"/>
+          <path d="M7 11.5V7a2 2 0 0 1 4 0v4.5"/>
+          <path d="M19 12v3a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-3a2 2 0 0 1 4 0v1"/>
+        </svg>
+        <span>Close Hand</span>
+      </button>
+
+      <button id="openButton" class="button primary open-hand-btn" disabled>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
+          <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
+          <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
+          <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
+        </svg>
+        <span>Open Hand</span>
+      </button>
+
+      <button id="resetButton" class="button secondary reset-hand-btn" disabled>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+          <path d="M3 3v5h5"/>
+        </svg>
+        <span>Reset</span>
+      </button>
+    </div>
   </section>
 
   <section class="card gallery-card">
@@ -154,5 +285,5 @@
   </section>
   <footer><span>NAVONMESH 26</span> · Camera detection runs locally on this computer</footer>
 </main>
-<script src="{{ url_for('static', filename='app.js') }}?v=15" defer></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=16" defer></script>
 </body></html>
