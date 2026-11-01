@@ -65,7 +65,7 @@ async function runCommand(action, successText) {
 function setCameraState(active, message) {
   el("cameraPanel").classList.toggle("active", active); el("cameraStatus").textContent = active ? "Live · Detecting" : "Camera off";
   el("cameraStatus").className = `pill ${active ? "online" : "muted"}`; el("cameraHeader").textContent = active ? "Active" : "Inactive";
-  el("cameraDot").className = `dot ${active ? "" : "red"}`; el("cameraToggle").innerHTML = active ? "■ <span>Stop Camera</span>" : "▶ <span>Start Camera</span>";
+  el("cameraDot").className = `dot ${active ? "" : "red"}`; el("cameraToggle").innerHTML = active ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> <span>Stop Camera</span>' : '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg> <span>Start Camera</span>';
   const camCard = el("cameraHeader").closest(".status-card") || el("cameraHeader").closest(".status-chip");
   camCard?.classList.toggle("connected", active);
   camCard?.classList.toggle("active", active);

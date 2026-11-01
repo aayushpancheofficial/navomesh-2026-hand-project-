@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3f7ff"><title>NAVONMESH 26 · Prosthetic Hand Control</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=14">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=15">
 </head>
 <body>
 <main class="app-shell">
@@ -67,18 +67,77 @@
 
   <section class="top-grid">
     <article class="card camera-card">
-      <div class="section-head"><div class="title-wrap"><span class="section-icon">◎</span><div><h2>Live Camera</h2><p>Live view and object recognition</p></div></div><span id="cameraStatus" class="pill muted">Camera off</span></div>
-      <div id="cameraPanel" class="camera-panel"><video id="cameraVideo" autoplay playsinline muted></video><canvas id="detectionCanvas"></canvas><div id="cameraPlaceholder" class="placeholder"><span>◎</span><strong>Camera is ready</strong><small>Start the camera to detect objects</small></div><div class="live-label"><i></i><span id="cameraOverlayText">CAMERA OFF</span></div><button id="fullscreenButton" class="fullscreen" title="Fullscreen">⛶</button></div>
-      <div class="camera-actions"><button id="cameraToggle" class="button secondary">▶ <span>Start Camera</span></button><button id="captureButton" class="button primary" disabled>▣ <span>Capture Snapshot</span></button></div>
+      <div class="section-head">
+        <div class="title-wrap">
+          <span class="section-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z"/><path d="m18 10 4-3v10l-4-3v-4Z"/></svg>
+          </span>
+          <div><h2>Live Camera</h2><p>Live view and object recognition</p></div>
+        </div>
+        <span id="cameraStatus" class="pill muted">Camera off</span>
+      </div>
+      <div id="cameraPanel" class="camera-panel">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <canvas id="detectionCanvas"></canvas>
+        <div id="cameraPlaceholder" class="placeholder">
+          <span class="placeholder-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z"/><path d="m18 10 4-3v10l-4-3v-4Z"/></svg>
+          </span>
+          <strong>Camera is ready</strong>
+          <small>Start the camera to detect objects</small>
+        </div>
+        <div class="live-label"><i></i><span id="cameraOverlayText">CAMERA OFF</span></div>
+        <button id="fullscreenButton" class="fullscreen" title="Fullscreen">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        </button>
+      </div>
+      <div class="camera-actions">
+        <button id="cameraToggle" class="button secondary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+          <span>Start Camera</span>
+        </button>
+        <button id="captureButton" class="button primary" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M4 7h4l2-3h4l2 3h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg>
+          <span>Capture Snapshot</span>
+        </button>
+      </div>
       <p class="inline-hint">Snapshots are saved to your captured media gallery.</p>
     </article>
     <article class="card detect-card">
-      <div class="section-head"><div class="title-wrap"><span class="section-icon target">⊙</span><div><h2>AI Detection</h2><p>Local YOLO object analysis</p></div></div><span id="modelPill" class="pill muted">Loading model</span></div>
-      <div class="detection-summary"><div id="objectThumb" class="object-thumb">◉</div><div class="detection-fields"><div><span>Focused Object</span><strong id="objectName">Waiting for camera</strong></div><div><span>Confidence</span><strong class="confidence" id="objectConfidence">—</strong></div><div><span>Position</span><strong id="objectPosition">—</strong></div></div></div>
-      <div class="object-picker-head"><strong>Visible objects <span id="detectionCount">0</span></strong><small>Select one to focus · click a box in the camera</small></div><div id="objectChoices" class="object-choices"><div class="choices-empty">Start the camera to find objects.</div></div>
+      <div class="section-head">
+        <div class="title-wrap">
+          <span class="section-icon target">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L22 12"/><path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L22 17"/></svg>
+          </span>
+          <div><h2>AI Detection</h2><p>Local YOLO object analysis</p></div>
+        </div>
+        <span id="modelPill" class="pill muted">Loading model</span>
+      </div>
+      <div class="detection-summary">
+        <div id="objectThumb" class="object-thumb">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3m8 0h3a1 1 0 0 1 1 1v3m0 8v3a1 1 0 0 1-1 1h-3m-8 0H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <div class="detection-fields">
+          <div><span>Focused Object</span><strong id="objectName">Waiting for camera</strong></div>
+          <div><span>Confidence</span><strong class="confidence" id="objectConfidence">—</strong></div>
+          <div><span>Position</span><strong id="objectPosition">—</strong></div>
+        </div>
+      </div>
+      <div class="object-picker-head"><strong>Visible objects <span id="detectionCount">0</span></strong><small>Select one to focus · click a box in the camera</small></div>
+      <div id="objectChoices" class="object-choices"><div class="choices-empty">Start the camera to find objects.</div></div>
       <div class="message-box" id="systemMessage">Connecting to the hand controller…</div>
-      <div class="button-row"><button id="graspButton" class="button grab" disabled><span>Grab Object</span></button><button id="releaseButton" class="button release" disabled><span>Release</span></button></div>
-      <button id="stopButton" class="button stop" disabled>Emergency Stop</button>
+      <div class="button-row">
+        <button id="graspButton" class="button grab" disabled>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V7a2 2 0 0 1 4 0v4"/><path d="M11 9V5a2 2 0 0 1 4 0v6"/><path d="M15 10V7a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-3a2 2 0 0 1 4 0v4"/></svg>
+          <span>Grab Object</span>
+        </button>
+        <button id="releaseButton" class="button release" disabled>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/><path d="M12 9v12"/></svg>
+          <span>Release</span>
+        </button>
+      </div>
+      <!-- Emergency Stop removed as requested; kept hidden for zero-error JS compatibility -->
+      <button id="stopButton" class="button stop" style="display:none;" disabled>Emergency Stop</button>
       <small class="hint">Confirm the hand is aligned before grabbing. Keep fingers clear while testing.</small>
     </article>
   </section>
@@ -95,5 +154,5 @@
   </section>
   <footer><span>NAVONMESH 26</span> · Camera detection runs locally on this computer</footer>
 </main>
-<script src="{{ url_for('static', filename='app.js') }}?v=14" defer></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=15" defer></script>
 </body></html>
