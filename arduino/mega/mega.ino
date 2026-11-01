@@ -22,8 +22,8 @@ const int MIN_ANGLE = 0;
 const int MAX_ANGLE = 180;
 
 // Example presets only; these are NOT calibrated prosthetic-hand positions.
-const int openAngles[SERVO_COUNT]  = {90, 90, 90, 90, 90};
-const int closeAngles[SERVO_COUNT] = {120, 120, 120, 120, 120};
+const int openAngles[SERVO_COUNT]  = {30, 30, 30, 30, 30};
+const int closeAngles[SERVO_COUNT] = {150, 150, 150, 150, 150};
 
 bool emergencyStopped = false;
 

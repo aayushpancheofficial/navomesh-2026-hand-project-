@@ -406,23 +406,24 @@ def command():
                 "error": "Resume before moving"
             }), 409
 
-        preset_angles = [90] * SERVO_COUNT if action == "OPEN" else [120] * SERVO_COUNT
+        target_angle = 30 if action == "OPEN" else 150
+        preset_angles = [target_angle] * SERVO_COUNT
 
         if not arduino_ready or arduino is None:
             servo_angles[:] = preset_angles
             save_servo_config()
-            return jsonify({"success": True, "message": f"{action.title()} hand position saved; it will sync when Arduino connects", "queued": True})
+            action_desc = "Open (30°)" if action == "OPEN" else "Close (150°)"
+            return jsonify({"success": True, "message": f"{action_desc} hand position saved; it will sync when Arduino connects", "queued": True})
 
         success, message = send_command(f"PRESET,{action}")
+        for i in range(SERVO_COUNT):
+            if servo_enabled[i]:
+                send_command(f"SET,{i},{target_angle}")
 
-        if success:
-
-            if action == "OPEN":
-                servo_angles[:] = [90] * SERVO_COUNT
-
-            else:
-                servo_angles[:] = [120] * SERVO_COUNT
-            save_servo_config()
+        servo_angles[:] = [target_angle] * SERVO_COUNT
+        save_servo_config()
+        action_desc = "Open (30°)" if action == "OPEN" else "Close (150°)"
+        return jsonify({"success": True, "message": f"{action_desc} command executed successfully."})
 
     elif action == "RESET":
         if emergency_stopped:

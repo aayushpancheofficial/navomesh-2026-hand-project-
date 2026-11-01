@@ -6,16 +6,29 @@ function updateSliderVisuals(slider) {
   updateGaugeDisplay();
 }
 
-function updateGaugeDisplay() {
+function updatePoseHighlight(pose) {
+  const closeBtn = el("closeButton");
+  const openBtn = el("openButton");
+  const resetBtn = el("resetButton");
+  closeBtn?.classList.toggle("active-pose", pose === "close");
+  openBtn?.classList.toggle("active-pose", pose === "open");
+  resetBtn?.classList.toggle("active-pose", pose === "reset");
+}
+
+function updateGaugeDisplay(customAvg) {
   const angles = [];
   for (let i = 0; i < SERVO_COUNT; i++) {
     const s = el(`slider${i}`);
     if (s) angles.push(Number(s.value));
   }
-  if (angles.length) {
-    const avg = Math.round(angles.reduce((a, b) => a + b, 0) / angles.length);
-    const gText = el("gaugeAngleText");
-    if (gText) gText.textContent = `${avg}°`;
+  const avg = customAvg !== undefined ? customAvg : (angles.length ? Math.round(angles.reduce((a, b) => a + b, 0) / angles.length) : 0);
+  const gText = el("gaugeAngleText");
+  if (gText) gText.textContent = `${avg}°`;
+  const arc = el("gaugeArcFill");
+  if (arc) {
+    const maxLen = 245;
+    const fillLen = Math.max(0, Math.min(maxLen, (avg / 180) * maxLen));
+    arc.style.strokeDasharray = `${fillLen.toFixed(1)}, ${maxLen}`;
   }
 }
 
@@ -209,14 +222,54 @@ for (let i=0;i<SERVO_COUNT;i+=1) {
   checkbox.addEventListener("change",async()=>{try{const result=await sendAction("ENABLE",{index:i,enabled:checkbox.checked});updateControls();if(result.queued)showMessage("Finger enable setting saved; it will sync when Arduino connects.");}catch(error){checkbox.checked=!checkbox.checked;showMessage(error.message);}});
 }
 el("audioToggle").addEventListener("click",toggleAudio);el("cameraToggle").addEventListener("click",toggleCamera);el("captureButton").addEventListener("click",captureSnapshot);
-el("fullscreenButton").addEventListener("click",()=>{const p=el("cameraPanel");if(!document.fullscreenElement)p.requestFullscreen?.();else document.exitFullscreen?.();});
-el("graspButton").addEventListener("click",grabDetectedObject);el("openButton").addEventListener("click",()=>runCommand("OPEN","Opening hand."));el("closeButton").addEventListener("click",()=>runCommand("CLOSE","Closing hand."));el("stopButton").addEventListener("click",()=>runCommand("STOP","Emergency stop sent."));el("releaseButton").addEventListener("click",()=>runCommand("RELEASE","Servo signals released."));
-el("resetButton").addEventListener("click", async () => {
+el("fullscreenButton")?.addEventListener("click",()=>{const p=el("cameraPanel");if(!document.fullscreenElement)p.requestFullscreen?.();else document.exitFullscreen?.();});
+el("graspButton")?.addEventListener("click",grabDetectedObject);
+
+el("openButton")?.addEventListener("click", async () => {
   for (let i = 0; i < SERVO_COUNT; i += 1) {
-    el(`slider${i}`).value = 0;
-    el(`angle${i}`).textContent = "0°";
-    updateSliderVisuals(el(`slider${i}`));
+    const sl = el(`slider${i}`);
+    if (sl) {
+      sl.value = 30;
+      updateSliderVisuals(sl);
+    }
+    const an = el(`angle${i}`);
+    if (an) an.textContent = "30°";
   }
+  updateGaugeDisplay(30);
+  updatePoseHighlight("open");
+  await runCommand("OPEN", "Hand opened to 30°.");
+});
+
+el("closeButton")?.addEventListener("click", async () => {
+  for (let i = 0; i < SERVO_COUNT; i += 1) {
+    const sl = el(`slider${i}`);
+    if (sl) {
+      sl.value = 150;
+      updateSliderVisuals(sl);
+    }
+    const an = el(`angle${i}`);
+    if (an) an.textContent = "150°";
+  }
+  updateGaugeDisplay(150);
+  updatePoseHighlight("close");
+  await runCommand("CLOSE", "Hand closed to 150°.");
+});
+
+el("stopButton")?.addEventListener("click",()=>runCommand("STOP","Emergency stop sent."));
+el("releaseButton")?.addEventListener("click",()=>runCommand("RELEASE","Servo signals released."));
+
+el("resetButton")?.addEventListener("click", async () => {
+  for (let i = 0; i < SERVO_COUNT; i += 1) {
+    const sl = el(`slider${i}`);
+    if (sl) {
+      sl.value = 0;
+      updateSliderVisuals(sl);
+    }
+    const an = el(`angle${i}`);
+    if (an) an.textContent = "0°";
+  }
+  updateGaugeDisplay(0);
+  updatePoseHighlight("reset");
   await runCommand("RESET", "Finger positions reset to 0°.");
 });
 el("galleryFilter").addEventListener("change",renderGallery);el("galleryAll").addEventListener("click",()=>{el("galleryFilter").value="all";renderGallery();});
