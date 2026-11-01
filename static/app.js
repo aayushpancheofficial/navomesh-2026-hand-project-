@@ -2,8 +2,8 @@
 
 const SERVO_COUNT = 5;
 const STATUS_INTERVAL_MS = 2000;
-const DETECTION_INTERVAL_MS = 320;
-const DETECTION_MAX_DIM = 480;
+const DETECTION_INTERVAL_MS = 240; // High-speed responsive cycle
+const DETECTION_MAX_DIM = 640;     // Native YOLOv8 640x640 resolution for crisp accuracy
 
 let connected = false, connectionKnown = false, stopped = false, audioEnabled = false;
 let cameraMode = "browser"; // "browser" or "usb"
@@ -12,6 +12,7 @@ let currentDetections = [], frameCanvas = null, commandQueue = Promise.resolve()
 
 // Locking, Tracking & Manual ROI state
 let focusedObjectId = null, focusedMissingFrames = 0;
+let lastLockedBbox = null; // [x1, y1, x2, y2] to track spatial continuity
 let isRoiMode = false, isDrawingRoi = false, roiStart = null, manualRoi = null, manualRoiData = null;
 let lastFrameImageB64 = null;
 let recommendedAiAngles = null;
@@ -211,6 +212,7 @@ async function toggleCamera() {
     currentDetections = [];
     manualRoi = null;
     manualRoiData = null;
+    lastLockedBbox = null;
     clearDetectionCanvas();
     showDetections([]);
     setCameraState(false, "Camera stopped.");
@@ -219,7 +221,6 @@ async function toggleCamera() {
   }
 
   if (cameraMode === "usb") {
-    // Start hardware USB camera on backend
     try {
       const resp = await fetch("/api/camera/start", {
         method: "POST",
@@ -254,7 +255,7 @@ async function toggleCamera() {
   try {
     try {
       cameraStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 960 }, height: { ideal: 540 } },
+        video: { width: { ideal: 1280, min: 640 }, height: { ideal: 720, min: 480 } },
         audio: false
       });
     } catch (_) {
@@ -314,7 +315,7 @@ async function startDetection() {
     el("modelPill").textContent = "Ready";
     el("modelPill").className = "pill online";
 
-    showMessage("AI tracking and detector ready. Point camera at an object.");
+    showMessage("AI tracking and detector active. Point camera at an object.");
     updateControls();
     scheduleDetection(0);
   } catch (error) {
@@ -349,6 +350,27 @@ function scheduleDetection(delay = DETECTION_INTERVAL_MS) {
   }
 }
 
+function findClosestDetection(detections, targetBbox) {
+  if (!detections.length) return null;
+  if (!targetBbox) return detections[0];
+  const tcx = (targetBbox[0] + targetBbox[2]) / 2;
+  const tcy = (targetBbox[1] + targetBbox[3]) / 2;
+
+  let best = detections[0];
+  let minDist = 999999;
+
+  detections.forEach(item => {
+    const cx = (item.bbox[0] + item.bbox[2]) / 2;
+    const cy = (item.bbox[1] + item.bbox[3]) / 2;
+    const dist = Math.hypot(cx - tcx, cy - tcy);
+    if (dist < minDist) {
+      minDist = dist;
+      best = item;
+    }
+  });
+  return best;
+}
+
 async function captureAndDetect() {
   if (!detectionActive || detectionBusy) return;
 
@@ -357,7 +379,7 @@ async function captureAndDetect() {
   if (cameraMode === "browser") {
     const video = el("cameraVideo");
     if (!cameraStream || video.readyState < 2 || !video.videoWidth) {
-      scheduleDetection(250);
+      scheduleDetection(200);
       return;
     }
     if (!frameCanvas) frameCanvas = document.createElement("canvas");
@@ -365,9 +387,8 @@ async function captureAndDetect() {
     frameCanvas.width = Math.round(video.videoWidth * scale);
     frameCanvas.height = Math.round(video.videoHeight * scale);
     frameCanvas.getContext("2d").drawImage(video, 0, 0, frameCanvas.width, frameCanvas.height);
-    imagePayload = frameCanvas.toDataURL("image/jpeg", 0.62);
+    imagePayload = frameCanvas.toDataURL("image/jpeg", 0.86); // High-quality image for crisp YOLO detection
   } else {
-    // USB Hardware mode: fetch latest frame or let backend use internal buffer
     try {
       const capResp = await fetch("/api/camera/capture_frame");
       if (capResp.ok) {
@@ -390,25 +411,43 @@ async function captureAndDetect() {
     lastFrameImageB64 = imagePayload;
     currentDetections = data.detections || [];
 
-    // If human safety alert triggered
+    // Live Telemetry Pill
     if (data.human_detected && data.exclude_person) {
       el("modelPill").textContent = "Human Excluded";
       el("modelPill").className = "pill amber";
     } else {
-      el("modelPill").textContent = `${data.count} visible`;
-      el("modelPill").className = "pill online";
+      const fpsText = data.fps ? `${data.fps} FPS · ` : "";
+      el("modelPill").textContent = `${fpsText}${data.count} visible`;
+      el("modelPill").className = data.count > 0 ? "pill online" : "pill muted";
     }
 
-    // Auto-lock onto first detected object if none locked, unless manual ROI is locked
-    if (!focusedObjectId && currentDetections.length && !manualRoi) {
-      focusedObjectId = currentDetections[0].id;
-    }
-
-    if (focusedObjectId && currentDetections.some(item => item.id === focusedObjectId)) {
-      focusedMissingFrames = 0;
-    } else if (focusedObjectId && !manualRoi && ++focusedMissingFrames > 8) {
-      focusedObjectId = currentDetections[0]?.id || null;
-      focusedMissingFrames = 0;
+    // BULLETPROOF TARGET LOCKING:
+    // If an object is visible, always ensure locked object is maintained and never broken
+    if (!manualRoiData && currentDetections.length > 0) {
+      if (!focusedObjectId) {
+        focusedObjectId = currentDetections[0].id;
+        lastLockedBbox = currentDetections[0].bbox;
+        focusedMissingFrames = 0;
+      } else {
+        const match = currentDetections.find(item => item.id === focusedObjectId);
+        if (match) {
+          lastLockedBbox = match.bbox;
+          focusedMissingFrames = 0;
+        } else {
+          // If ID shifted, smoothly re-anchor to the closest spatial detection
+          const closest = findClosestDetection(currentDetections, lastLockedBbox);
+          if (closest) {
+            focusedObjectId = closest.id;
+            lastLockedBbox = closest.bbox;
+            focusedMissingFrames = 0;
+          }
+        }
+      }
+    } else if (currentDetections.length === 0 && !manualRoiData) {
+      if (focusedObjectId && ++focusedMissingFrames > 12) {
+        focusedObjectId = null;
+        lastLockedBbox = null;
+      }
     }
 
     const vw = (cameraMode === "browser" ? el("cameraVideo").videoWidth : (frameCanvas?.width || 640)) || 640;
@@ -428,7 +467,7 @@ async function captureAndDetect() {
 }
 
 // ==========================================
-// DRAWING DETECTIONS, LOCK TARGETS & MANUAL ROI
+// DRAWING DETECTIONS, LOCK TARGETS & HIGH TRANSPARENCY HUD
 // ==========================================
 
 function drawDetections(detections, width, height) {
@@ -451,23 +490,29 @@ function drawDetections(detections, width, height) {
     // Mirror horizontally for browser webcam to feel natural (front mirror)
     const x1 = (cameraMode === "browser") ? canvas.width - rawX2 : rawX1;
     const x2 = (cameraMode === "browser") ? canvas.width - rawX1 : rawX2;
-    const boxW = x2 - x1;
-    const boxH = y2 - y1;
+    const boxW = Math.max(12, x2 - x1);
+    const boxH = Math.max(12, y2 - y1);
 
-    const isLocked = (item.id === focusedObjectId);
+    const isLocked = (item.id === focusedObjectId && !manualRoiData);
     const isHuman = Boolean(item.is_human);
 
-    // Border and Corner styling
+    // High Transparency Inner Tint
+    ctx.fillStyle = isLocked ? "rgba(0, 229, 255, 0.12)" : (isHuman ? "rgba(239, 68, 68, 0.08)" : "rgba(56, 189, 248, 0.06)");
+    ctx.fillRect(x1, y1, boxW, boxH);
+
+    // Border and Corner Reticles
     if (isLocked) {
-      // High-visibility neon target lock
-      ctx.lineWidth = 3;
+      // Sleek neon locked border
+      ctx.lineWidth = 2.5;
       ctx.strokeStyle = "#00e5ff";
       ctx.strokeRect(x1, y1, boxW, boxH);
 
-      // Corner brackets
-      const bLen = Math.min(18, boxW / 4, boxH / 4);
+      // Precision Corner Targeting Reticles
+      const bLen = Math.min(22, boxW / 3, boxH / 3);
       ctx.lineWidth = 4;
       ctx.strokeStyle = "#00ffcc";
+      ctx.shadowColor = "rgba(0, 255, 204, 0.6)";
+      ctx.shadowBlur = 6;
 
       // Top-Left
       ctx.beginPath(); ctx.moveTo(x1, y1 + bLen); ctx.lineTo(x1, y1); ctx.lineTo(x1 + bLen, y1); ctx.stroke();
@@ -477,49 +522,78 @@ function drawDetections(detections, width, height) {
       ctx.beginPath(); ctx.moveTo(x1, y2 - bLen); ctx.lineTo(x1, y2); ctx.lineTo(x1 + bLen, y2); ctx.stroke();
       // Bottom-Right
       ctx.beginPath(); ctx.moveTo(x2 - bLen, y2); ctx.lineTo(x2, y2); ctx.lineTo(x2, y2 - bLen); ctx.stroke();
+      ctx.shadowBlur = 0;
 
       // Center crosshair
       const cx = x1 + boxW / 2, cy = y1 + boxH / 2;
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(cx - 8, cy); ctx.lineTo(cx + 8, cy); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx, cy - 8); ctx.lineTo(cx, cy + 8); ctx.stroke();
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = "#00ffcc";
+      ctx.beginPath(); ctx.moveTo(cx - 9, cy); ctx.lineTo(cx + 9, cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy - 9); ctx.lineTo(cx, cy + 9); ctx.stroke();
     } else {
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 1.8;
       ctx.strokeStyle = isHuman ? "#ef4444" : "#38bdf8";
       ctx.strokeRect(x1, y1, boxW, boxH);
     }
 
-    // Label tag
-    const lockText = isLocked ? " · [LOCKED]" : "";
-    const label = `${item.raw_label || item.label} ${item.confidence}%${lockText}`;
+    // High Transparency Glassmorphism Label Tag
+    const lockText = isLocked ? " · [LOCKED TARGET]" : "";
+    const label = `${item.label || item.raw_label} ${item.confidence}%${lockText}`;
     ctx.font = "bold 13px system-ui";
     const tw = ctx.measureText(label).width;
-    const tagX = Math.min(Math.max(0, x1), Math.max(0, canvas.width - tw - 16));
-    const tagY = Math.max(0, y1 - 26);
+    const tagX = Math.min(Math.max(0, x1), Math.max(0, canvas.width - tw - 18));
+    const tagY = Math.max(4, y1 - 28);
 
-    ctx.fillStyle = isLocked ? "#00e5ff" : (isHuman ? "#ef4444" : "#0284c7");
-    ctx.fillRect(tagX, tagY, tw + 14, 24);
-    ctx.fillStyle = isLocked ? "#041e3a" : "#ffffff";
-    ctx.fillText(label, tagX + 7, tagY + 16);
+    // Semi-transparent tag background
+    ctx.fillStyle = isLocked ? "rgba(5, 23, 48, 0.86)" : (isHuman ? "rgba(45, 10, 10, 0.85)" : "rgba(10, 25, 47, 0.76)");
+    ctx.beginPath();
+    if (typeof ctx.roundRect === "function") {
+      ctx.roundRect(tagX, tagY, tw + 16, 25, 6);
+      ctx.fill();
+    } else {
+      ctx.fillRect(tagX, tagY, tw + 16, 25);
+    }
+
+    // Tag border
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = isLocked ? "#00e5ff" : (isHuman ? "#ef4444" : "#38bdf8");
+    ctx.stroke();
+
+    // Tag text
+    ctx.fillStyle = isLocked ? "#00ffcc" : (isHuman ? "#fca5a5" : "#e0f2fe");
+    ctx.fillText(label, tagX + 8, tagY + 17);
   });
 
   // 2. Draw Manual ROI if active
   if (manualRoi) {
     const [mx1, my1, mx2, my2] = manualRoi;
     const mw = mx2 - mx1, mh = my2 - my1;
+
+    // Semi-transparent purple tint
+    ctx.fillStyle = "rgba(168, 85, 247, 0.12)";
+    ctx.fillRect(mx1, my1, mw, mh);
+
     ctx.setLineDash([6, 4]);
     ctx.lineWidth = 3;
-    ctx.strokeStyle = "#a855f7"; // Neon purple/violet for custom ROI
+    ctx.strokeStyle = "#c084fc";
     ctx.strokeRect(mx1, my1, mw, mh);
     ctx.setLineDash([]);
 
-    const roiLabel = `MANUAL ROI [LOCKED TARGET]`;
+    const roiLabel = `⌖ MANUAL ROI [LOCKED TARGET]`;
     ctx.font = "bold 12px system-ui";
     const rtw = ctx.measureText(roiLabel).width;
-    ctx.fillStyle = "#a855f7";
-    ctx.fillRect(mx1, Math.max(0, my1 - 24), rtw + 14, 22);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(roiLabel, mx1 + 7, Math.max(16, my1 - 8));
+    ctx.fillStyle = "rgba(24, 10, 40, 0.88)";
+    if (typeof ctx.roundRect === "function") {
+      ctx.beginPath();
+      ctx.roundRect(mx1, Math.max(4, my1 - 26), rtw + 16, 24, 6);
+      ctx.fill();
+      ctx.strokeStyle = "#c084fc";
+      ctx.stroke();
+    } else {
+      ctx.fillRect(mx1, Math.max(4, my1 - 26), rtw + 16, 24);
+    }
+    ctx.fillStyle = "#e9d5ff";
+    ctx.fillText(roiLabel, mx1 + 8, Math.max(18, my1 - 9));
   }
 
   // 3. Draw live dragging ROI preview
@@ -532,9 +606,9 @@ function drawDetections(detections, width, height) {
 
     ctx.setLineDash([4, 4]);
     ctx.lineWidth = 2;
-    ctx.strokeStyle = "#eab308"; // Yellow drawing preview
+    ctx.strokeStyle = "#eab308";
     ctx.strokeRect(rx, ry, rw, rh);
-    ctx.fillStyle = "rgba(234, 179, 8, 0.15)";
+    ctx.fillStyle = "rgba(234, 179, 8, 0.18)";
     ctx.fillRect(rx, ry, rw, rh);
     ctx.setLineDash([]);
   }
@@ -557,6 +631,7 @@ function selectObject(id) {
   focusedObjectId = id;
   focusedMissingFrames = 0;
   const target = getFocusedDetection();
+  if (target) lastLockedBbox = target.bbox;
   drawDetections(currentDetections, frameCanvas?.width || 640, frameCanvas?.height || 480);
   showDetections(currentDetections);
   showMessage(`Target locked on ${target?.label || "selected object"}. Hand is ready to grab.`);
@@ -564,7 +639,11 @@ function selectObject(id) {
 
 function getFocusedDetection() {
   if (manualRoiData) return manualRoiData;
-  return currentDetections.find(item => item.id === focusedObjectId) || null;
+  const match = currentDetections.find(item => item.id === focusedObjectId);
+  if (match) return match;
+  // If no exact ID match but detections exist, return the first detection as fallback lock
+  if (currentDetections.length > 0) return currentDetections[0];
+  return null;
 }
 
 function showDetections(detections) {
@@ -572,9 +651,7 @@ function showDetections(detections) {
   el("objectThumb").textContent = primary ? "▣" : "◉";
 
   if (!primary) {
-    el("objectName").textContent = (focusedObjectId && focusedMissingFrames <= 8)
-      ? "Target tracking..."
-      : (detectionActive ? "No object detected" : "Waiting for camera");
+    el("objectName").textContent = detectionActive ? "No object in view" : "Waiting for camera";
     el("objectConfidence").textContent = "—";
     el("objectPosition").textContent = "—";
   } else {
@@ -594,18 +671,18 @@ function showDetections(detections) {
       <button type="button" class="object-choice selected" data-roi="true">
         <span class="object-number">★</span>
         <span class="choice-label">Manual ROI Selection<small>Operator Defined Region</small></span>
-        <strong>LOCKED</strong>
+        <strong style="color:#00ffcc;">LOCKED</strong>
       </button>
     `);
   }
 
   detections.forEach((item, index) => {
-    const isSelected = (item.id === focusedObjectId && !manualRoiData);
+    const isSelected = (primary && item.id === primary.id && !manualRoiData);
     const humanWarning = item.is_human ? ' <span style="color:#ef4444;">(Human)</span>' : '';
     htmlItems.push(`
       <button type="button" class="object-choice ${isSelected ? "selected" : ""}" data-object-id="${escapeHtml(item.id)}">
         <span class="object-number">${index + 1}</span>
-        <span class="choice-label">${escapeHtml(item.label || item.raw_label || "Object")}${humanWarning}<small>${escapeHtml(item.category || "Detected object")}</small></span>
+        <span class="choice-label">${escapeHtml(item.label || item.raw_label || "Object")}${humanWarning}<small>${escapeHtml(item.suggested_grip || item.category || "Detected object")}</small></span>
         <strong>${escapeHtml(item.confidence)}%</strong>
       </button>
     `);
@@ -849,7 +926,6 @@ async function grabDetectedObject() {
 async function captureSnapshot() {
   const canvas = document.createElement("canvas");
   const video = el("cameraVideo");
-  const usbImg = el("usbFeedImg");
 
   if (cameraMode === "browser") {
     if (!cameraStream || video.readyState < 2) return;
@@ -859,9 +935,6 @@ async function captureSnapshot() {
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0);
-  } else {
-    if (!lastFrameImageB64) return;
-    // Use lastFrameImageB64
   }
 
   const image = (cameraMode === "browser") ? canvas.toDataURL("image/jpeg", 0.9) : lastFrameImageB64;

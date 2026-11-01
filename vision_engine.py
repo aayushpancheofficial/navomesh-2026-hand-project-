@@ -5,8 +5,10 @@ Intelligent Object Detection & Recognition Engine
 Features:
 - Local real-time object detection using Ultralytics YOLO (lightweight model: yolov8n.pt)
 - Monocular 2D webcam inference running locally (100% offline capable)
+- Advanced spatial tracking using IoU and centroid Euclidean distance to prevent lock breaking
 - Multi-object detection with bounding box coordinates, confidence scores, and tiers
-- Stable object tracking across consecutive frames to smooth bounding boxes and prevent jitter
+- Stable object tracking across consecutive frames with label-voting to eliminate flickering
+- Heuristic refinement for cylindrical handheld items (cups/bottles vs phones)
 - Manual ROI (Region of Interest) extraction, locking, and tracking
 - Person / Human safety exclusion to protect humans from autonomous prosthetic grasping
 - Optional OpenAI Vision API integration for advanced cloud grasp analysis
@@ -33,10 +35,11 @@ DEFAULT_MODEL_PATH = os.path.join(BASE_DIR, "yolov8n.pt")
 
 class CentroidTracker:
     """
-    Lightweight IOU-based object tracker to assign stable IDs across frames
-    and smooth bounding box coordinates to reduce visual jitter.
+    Advanced spatial object tracker using IoU and centroid Euclidean distance.
+    Maintains track identity even if the classifier label flickers or confidence dips.
+    Smooths coordinates and votes on class labels to eliminate jitter and flickering.
     """
-    def __init__(self, max_lost: int = 5, iou_threshold: float = 0.35):
+    def __init__(self, max_lost: int = 15, iou_threshold: float = 0.18):
         self.next_id = 1
         self.objects: Dict[int, Dict[str, Any]] = {}
         self.max_lost = max_lost
@@ -53,13 +56,21 @@ class CentroidTracker:
         boxAArea = max(1, (boxA[2] - boxA[0]) * (boxA[3] - boxA[1]))
         boxBArea = max(1, (boxB[2] - boxB[0]) * (boxB[3] - boxB[1]))
 
-        iou = interArea / float(boxAArea + boxBArea - interArea)
-        return iou
+        return interArea / float(boxAArea + boxBArea - interArea)
+
+    @staticmethod
+    def _centroid_dist(boxA: List[int], boxB: List[int]) -> float:
+        cAx = (boxA[0] + boxA[2]) / 2.0
+        cAy = (boxA[1] + boxA[3]) / 2.0
+        cBx = (boxB[0] + boxB[2]) / 2.0
+        cBy = (boxB[1] + boxB[3]) / 2.0
+        return ((cAx - cBx) ** 2 + (cAy - cBy) ** 2) ** 0.5
 
     def update(self, detections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
-        Match incoming detections to existing tracks using IOU and class match.
+        Match incoming detections to existing tracks spatially to prevent broken locks.
         """
+        # Age existing tracks
         for obj_id in list(self.objects.keys()):
             self.objects[obj_id]["lost"] += 1
             if self.objects[obj_id]["lost"] > self.max_lost:
@@ -68,49 +79,88 @@ class CentroidTracker:
         matched_track_ids = set()
         updated_detections = []
 
-        for det in detections:
+        # Sort detections by confidence descending so strongest boxes get matched first
+        sorted_dets = sorted(detections, key=lambda d: d.get("confidence_raw", 0.0), reverse=True)
+
+        for det in sorted_dets:
             bbox = det["bbox"]
             label = det["raw_label"]
+            conf = det.get("confidence_raw", 0.5)
+
+            best_match_id = None
             best_iou = 0.0
-            best_id = None
+            min_dist = 999999.0
 
             for obj_id, track in self.objects.items():
                 if obj_id in matched_track_ids:
                     continue
-                if track["raw_label"] == label:
-                    iou = self._compute_iou(bbox, track["bbox"])
-                    if iou > best_iou and iou >= self.iou_threshold:
-                        best_iou = iou
-                        best_id = obj_id
 
-            if best_id is not None:
-                prev_bbox = self.objects[best_id]["bbox"]
+                iou = self._compute_iou(bbox, track["bbox"])
+                dist = self._centroid_dist(bbox, track["bbox"])
+                box_diag = ((bbox[2] - bbox[0])**2 + (bbox[3] - bbox[1])**2) ** 0.5
+
+                # Spatial matching: IoU or proximity within box diagonal
+                if iou >= self.iou_threshold and iou > best_iou:
+                    best_iou = iou
+                    best_match_id = obj_id
+                elif best_iou < self.iou_threshold and dist < max(85.0, box_diag * 0.55) and dist < min_dist:
+                    min_dist = dist
+                    best_match_id = obj_id
+
+            if best_match_id is not None:
+                track = self.objects[best_match_id]
+                prev_bbox = track["bbox"]
+
+                # Adaptive exponential smoothing: smooth movement without lag
                 smoothed_bbox = [
-                    int(0.65 * bbox[0] + 0.35 * prev_bbox[0]),
-                    int(0.65 * bbox[1] + 0.35 * prev_bbox[1]),
-                    int(0.65 * bbox[2] + 0.35 * prev_bbox[2]),
-                    int(0.65 * bbox[3] + 0.35 * prev_bbox[3]),
+                    int(0.72 * bbox[0] + 0.28 * prev_bbox[0]),
+                    int(0.72 * bbox[1] + 0.28 * prev_bbox[1]),
+                    int(0.72 * bbox[2] + 0.28 * prev_bbox[2]),
+                    int(0.72 * bbox[3] + 0.28 * prev_bbox[3]),
                 ]
-                self.objects[best_id]["bbox"] = smoothed_bbox
-                self.objects[best_id]["lost"] = 0
-                self.objects[best_id]["hits"] += 1
-                matched_track_ids.add(best_id)
 
-                det["track_id"] = best_id
+                # Accumulate label confidence votes to eliminate label flickering
+                track["label_votes"][label] = track["label_votes"].get(label, 0.0) + conf
+                stabilized_label = max(track["label_votes"], key=track["label_votes"].get)
+
+                track["bbox"] = smoothed_bbox
+                track["lost"] = 0
+                track["hits"] += 1
+                track["raw_label"] = stabilized_label
+                track["last_conf"] = conf
+                matched_track_ids.add(best_match_id)
+
+                det["track_id"] = best_match_id
                 det["bbox"] = smoothed_bbox
+                det["raw_label"] = stabilized_label
             else:
                 new_id = self.next_id
                 self.next_id += 1
                 self.objects[new_id] = {
                     "bbox": bbox,
                     "raw_label": label,
+                    "label_votes": {label: conf},
                     "lost": 0,
-                    "hits": 1
+                    "hits": 1,
+                    "last_conf": conf
                 }
                 matched_track_ids.add(new_id)
                 det["track_id"] = new_id
 
             updated_detections.append(det)
+
+        # Anti-Drop Persistence: If a locked/strong track momentarily missed detection for 1-2 frames, keep it active
+        for obj_id, track in self.objects.items():
+            if obj_id not in matched_track_ids and track["hits"] >= 3 and track["lost"] <= 2:
+                updated_detections.append({
+                    "raw_label": track["raw_label"],
+                    "class_id": 999,
+                    "confidence_raw": max(0.40, track["last_conf"] * 0.90),
+                    "bbox": track["bbox"],
+                    "track_id": obj_id,
+                    "is_human": False,
+                    "interpolated": True
+                })
 
         return updated_detections
 
@@ -125,7 +175,7 @@ class VisionEngine:
     person/human exclusion, manual ROI extraction, optional OpenAI Vision,
     grasp assessment integration, FPS calculation, and detection history.
     """
-    def __init__(self, model_name: str = DEFAULT_MODEL_PATH, default_conf: float = 0.38):
+    def __init__(self, model_name: str = DEFAULT_MODEL_PATH, default_conf: float = 0.25):
         self.model_name = model_name
         self.conf_threshold = default_conf
         self.model = None
@@ -133,7 +183,7 @@ class VisionEngine:
         self.model_error = None
         self.device = "cpu"
         self.lock = threading.Lock()
-        self.tracker = CentroidTracker()
+        self.tracker = CentroidTracker(max_lost=15, iou_threshold=0.18)
 
         # Person / Human safety exclusion (Default: True for prosthetic hand safety)
         self.exclude_person = os.getenv("EXCLUDE_PERSON", "true").lower() in ("true", "1", "yes")
@@ -211,7 +261,7 @@ class VisionEngine:
             nw, nh = max(1, int(cw * scale)), max(1, int(ch * scale))
             resized = cv2.resize(crop, (nw, nh), interpolation=cv2.INTER_AREA)
 
-            _, buf = cv2.imencode(".jpg", resized, [cv2.IMWRITE_JPEG_QUALITY, 75])
+            _, buf = cv2.imencode(".jpg", resized, [cv2.IMWRITE_JPEG_QUALITY, 80])
             return base64.b64encode(buf).decode("utf-8")
         except Exception:
             return ""
@@ -303,6 +353,14 @@ class VisionEngine:
                     # Person / Human exclusion: if exclude_person is active, skip adding humans to pickable targets
                     if self.exclude_person and is_human:
                         continue
+
+                    # Heuristic refinement for cylindrical items (paper cups, coffee cups, glasses)
+                    # that YOLOv8n falsely tags as cell phone due to text/graphics
+                    bw = x2 - x1
+                    bh = y2 - y1
+                    aspect = bh / max(1, bw)
+                    if label == "cell phone" and 0.80 <= aspect <= 1.85 and conf < 0.78:
+                        label = "cup"
 
                     raw_detections.append({
                         "raw_label": label,
@@ -417,12 +475,12 @@ class VisionEngine:
 
         # Run local YOLO on crop
         detected_label = "Custom ROI Target"
-        detected_conf = 85.0
-        grip_type = "Precision Pinch or Palmar Wrap"
+        detected_conf = 88.0
+        grip_type = "Precision Pinch or Cylindrical Wrap"
 
         if self.model is not None:
             try:
-                results = self.model.predict(source=crop, conf=0.25, verbose=False, device=self.device)
+                results = self.model.predict(source=crop, conf=0.20, verbose=False, device=self.device)
                 if results and len(results) > 0 and len(results[0].boxes) > 0:
                     best_box = results[0].boxes[0]
                     cls_id = int(best_box.cls[0].item())
