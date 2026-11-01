@@ -13,6 +13,8 @@ from vision_engine import VisionEngine
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 CAPTURE_DIR = os.path.join(app.root_path, "static", "captures")
 CAPTURE_INDEX = os.path.join(CAPTURE_DIR, "index.json")
 os.makedirs(CAPTURE_DIR, exist_ok=True)
