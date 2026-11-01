@@ -424,6 +424,24 @@ def command():
                 servo_angles[:] = [120] * SERVO_COUNT
             save_servo_config()
 
+    elif action == "RESET":
+        if emergency_stopped:
+            return jsonify({
+                "success": False,
+                "error": "Resume before moving"
+            }), 409
+
+        servo_angles[:] = [0] * SERVO_COUNT
+        save_servo_config()
+
+        if not arduino_ready or arduino is None:
+            return jsonify({"success": True, "message": "All fingers reset to 0°. It will sync when Arduino connects", "queued": True})
+
+        for i in range(SERVO_COUNT):
+            if servo_enabled[i]:
+                send_command(f"SET,{i},0")
+        return jsonify({"success": True, "message": "All fingers reset to 0°."})
+
     # --------------------------------------
     # EMERGENCY STOP
     # --------------------------------------

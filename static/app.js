@@ -211,6 +211,13 @@ for (let i=0;i<SERVO_COUNT;i+=1) {
 el("audioToggle").addEventListener("click",toggleAudio);el("cameraToggle").addEventListener("click",toggleCamera);el("captureButton").addEventListener("click",captureSnapshot);
 el("fullscreenButton").addEventListener("click",()=>{const p=el("cameraPanel");if(!document.fullscreenElement)p.requestFullscreen?.();else document.exitFullscreen?.();});
 el("graspButton").addEventListener("click",grabDetectedObject);el("openButton").addEventListener("click",()=>runCommand("OPEN","Opening hand."));el("closeButton").addEventListener("click",()=>runCommand("CLOSE","Closing hand."));el("stopButton").addEventListener("click",()=>runCommand("STOP","Emergency stop sent."));el("releaseButton").addEventListener("click",()=>runCommand("RELEASE","Servo signals released."));
-el("resetButton").addEventListener("click",async()=>{for(let i=0;i<SERVO_COUNT;i+=1){el(`slider${i}`).value=90;el(`angle${i}`).textContent="90°";updateSliderVisuals(el(`slider${i}`));}await runCommand("OPEN","Finger positions reset to open.");});
+el("resetButton").addEventListener("click", async () => {
+  for (let i = 0; i < SERVO_COUNT; i += 1) {
+    el(`slider${i}`).value = 0;
+    el(`angle${i}`).textContent = "0°";
+    updateSliderVisuals(el(`slider${i}`));
+  }
+  await runCommand("RESET", "Finger positions reset to 0°.");
+});
 el("galleryFilter").addEventListener("change",renderGallery);el("galleryAll").addEventListener("click",()=>{el("galleryFilter").value="all";renderGallery();});
 updateStatus();loadGallery();setInterval(updateStatus,STATUS_INTERVAL_MS);
