@@ -3,31 +3,64 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3f7ff"><title>NAVONMESH 26 · Prosthetic Hand Control</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=13">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=14">
 </head>
 <body>
 <main class="app-shell">
   <header class="topbar card">
     <a class="brand" href="/">
-      <div class="brand-title">NAVONMESH <span class="brand-num">26</span></div>
-      <div class="brand-subtitle">AI Prosthetic Hand Control System</div>
+      <span class="brand-bar"></span>
+      <div class="brand-text">
+        <div class="brand-title">NAVONMESH <span class="brand-num">26</span></div>
+        <div class="brand-subtitle">AI Prosthetic Hand Control System</div>
+      </div>
     </a>
     <div class="header-status">
-      <div class="status-chip webcam-chip">
-        <span class="chip-label">WEBCAM</span>
-        <span id="cameraHeader" class="chip-status">Inactive</span>
-        <i id="cameraDot" style="display:none"></i>
+      <div class="status-card" id="cameraCard">
+        <span class="status-card-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z"/><path d="m18 10 4-3v10l-4-3v-4Z"/></svg>
+        </span>
+        <span class="status-card-divider"></span>
+        <div class="status-card-body">
+          <span class="status-card-title">Webcam</span>
+          <span class="status-card-state">
+            <span id="cameraHeader">Inactive</span>
+            <i id="cameraDot" class="status-dot"></i>
+          </span>
+        </div>
       </div>
-      <div class="status-chip ai-chip">
-        <span class="chip-label">AI DETECTION</span>
-        <span id="aiHeader" class="chip-status">Standby</span>
-        <i id="aiDot" style="display:none"></i>
+
+      <div class="status-card" id="aiCard">
+        <span class="status-card-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L22 12"/><path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L22 17"/></svg>
+        </span>
+        <span class="status-card-divider"></span>
+        <div class="status-card-body">
+          <span class="status-card-title">AI Detection</span>
+          <span class="status-card-state">
+            <span id="aiHeader">Ready</span>
+            <i id="aiDot" class="status-dot active"></i>
+          </span>
+        </div>
       </div>
-      <div class="status-chip arduino-chip">
-        <span id="arduinoPortLabel" class="chip-label">ARDUINO (COM3)</span>
-        <span id="portHeader" class="chip-status">Offline</span>
-        <i id="arduinoDot" style="display:none"></i>
+
+      <div class="status-card" id="arduinoCard">
+        <span class="status-card-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="19" r="2"/><circle cx="6" cy="5" r="1.5"/><rect x="16.5" y="3.5" width="3" height="3" rx="0.5"/><path d="M12 17V8"/><path d="m12 11 6-3.5"/><path d="m12 12-6-4"/><path d="m10.5 3.5 1.5-1.5 1.5 1.5"/></svg>
+        </span>
+        <span class="status-card-divider"></span>
+        <div class="status-card-body">
+          <span id="arduinoPortLabel" class="status-card-title">Arduino (COM3)</span>
+          <span class="status-card-state">
+            <span id="portHeader">Offline</span>
+            <i id="arduinoDot" class="status-dot"></i>
+          </span>
+        </div>
       </div>
+
+      <button id="settingsBtn" class="status-settings-btn" title="Servo Motor Settings" aria-label="Settings" onclick="document.querySelector('.servo-card')?.scrollIntoView({behavior:'smooth'})">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
       <button id="audioToggle" style="display:none" title="Toggle audio alerts" aria-label="Toggle audio alerts"></button>
     </div>
   </header>
@@ -62,5 +95,5 @@
   </section>
   <footer><span>NAVONMESH 26</span> · Camera detection runs locally on this computer</footer>
 </main>
-<script src="{{ url_for('static', filename='app.js') }}?v=13" defer></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=14" defer></script>
 </body></html>

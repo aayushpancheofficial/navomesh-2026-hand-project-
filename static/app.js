@@ -21,9 +21,12 @@ function setConnectionState(isConnected, port, message) {
   const badge = el("portHeader");
   if (badge) badge.textContent = connected ? "Connected" : "Offline";
   const portLabel = el("arduinoPortLabel");
-  if (portLabel) portLabel.textContent = `ARDUINO (${port || "COM3"})`;
-  badge?.closest(".status-chip")?.classList.toggle("connected", connected);
-  if (el("arduinoDot")) el("arduinoDot").className = `dot ${connected ? "" : "red"}`;
+  if (portLabel) portLabel.textContent = `Arduino (${port || "COM3"})`;
+  const card = badge?.closest(".status-card") || badge?.closest(".status-chip");
+  card?.classList.toggle("connected", connected);
+  card?.classList.toggle("offline", !connected);
+  const dot = el("arduinoDot");
+  if (dot) dot.className = `status-dot ${connected ? "active" : "red"}`;
   if (connectionKnown && connected !== setConnectionState.previous) speak(connected ? "Arduino connected" : "Arduino disconnected");
   setConnectionState.previous = connected; connectionKnown = true;
   if (message && !connected) showMessage(message);
@@ -63,7 +66,10 @@ function setCameraState(active, message) {
   el("cameraPanel").classList.toggle("active", active); el("cameraStatus").textContent = active ? "Live · Detecting" : "Camera off";
   el("cameraStatus").className = `pill ${active ? "online" : "muted"}`; el("cameraHeader").textContent = active ? "Active" : "Inactive";
   el("cameraDot").className = `dot ${active ? "" : "red"}`; el("cameraToggle").innerHTML = active ? "■ <span>Stop Camera</span>" : "▶ <span>Start Camera</span>";
-  el("cameraHeader").closest(".status-chip")?.classList.toggle("connected", active);
+  const camCard = el("cameraHeader").closest(".status-card") || el("cameraHeader").closest(".status-chip");
+  camCard?.classList.toggle("connected", active);
+  camCard?.classList.toggle("active", active);
+  if (el("cameraDot")) el("cameraDot").className = `status-dot ${active ? "active" : ""}`;
   el("cameraOverlayText").textContent = active ? "LIVE · AI DETECTION" : "CAMERA OFF"; el("captureButton").disabled = !active; if (message) showMessage(message);
 }
 async function toggleCamera() {
@@ -88,17 +94,17 @@ async function toggleCamera() {
   }
 }
 async function startDetection() {
-  el("aiHeader").textContent = "Loading…"; el("aiDot").className = "dot amber"; el("modelPill").textContent = "Loading model"; el("modelPill").className = "pill busy";
+  el("aiHeader").textContent = "Loading…"; if (el("aiDot")) el("aiDot").className = "status-dot amber"; el("modelPill").textContent = "Loading model"; el("modelPill").className = "pill busy";
   try {
     const response = await fetch("/api/detection/start", { method: "POST" }); const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.success) throw new Error(data.error || `Detector could not start (${response.status})`);
-    detectionActive = true; el("aiHeader").textContent = "Ready"; el("aiDot").className = "dot"; el("aiHeader").closest(".status-chip")?.classList.add("connected"); el("modelPill").textContent = "Ready"; el("modelPill").className = "pill online";
+    detectionActive = true; el("aiHeader").textContent = "Ready"; if (el("aiDot")) el("aiDot").className = "status-dot active"; (el("aiHeader").closest(".status-card") || el("aiHeader").closest(".status-chip"))?.classList.add("connected"); el("modelPill").textContent = "Ready"; el("modelPill").className = "pill online";
     showMessage("AI detector ready. Point the camera at an object."); updateControls(); scheduleDetection(0);
-  } catch (error) { detectionActive = false; el("aiHeader").textContent = "Unavailable"; el("aiDot").className = "dot red"; el("aiHeader").closest(".status-chip")?.classList.remove("connected"); el("modelPill").textContent = "Unavailable"; el("modelPill").className = "pill muted"; showMessage(`Object detector error: ${error.message}`); updateControls(); }
+  } catch (error) { detectionActive = false; el("aiHeader").textContent = "Unavailable"; if (el("aiDot")) el("aiDot").className = "status-dot red"; (el("aiHeader").closest(".status-card") || el("aiHeader").closest(".status-chip"))?.classList.remove("connected"); el("modelPill").textContent = "Unavailable"; el("modelPill").className = "pill muted"; showMessage(`Object detector error: ${error.message}`); updateControls(); }
 }
 async function stopDetection() {
   detectionActive = false; detectionBusy = false; clearTimeout(detectionTimer); detectionTimer = null;
-  el("aiHeader").textContent = "Standby"; el("aiDot").className = "dot red"; el("aiHeader").closest(".status-chip")?.classList.remove("connected"); el("modelPill").textContent = "Standby"; el("modelPill").className = "pill muted";
+  el("aiHeader").textContent = "Standby"; if (el("aiDot")) el("aiDot").className = "status-dot"; (el("aiHeader").closest(".status-card") || el("aiHeader").closest(".status-chip"))?.classList.remove("connected"); el("modelPill").textContent = "Standby"; el("modelPill").className = "pill muted";
   try { await fetch("/api/detection/stop", { method: "POST" }); } catch (_) { /* server may be offline */ }
 }
 function scheduleDetection(delay = DETECTION_INTERVAL_MS) { clearTimeout(detectionTimer); if (detectionActive && cameraStream) detectionTimer = setTimeout(captureAndDetect, delay); }
