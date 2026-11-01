@@ -611,3 +611,240 @@
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* ==========================================
+   PORTABILITY & AI VISION EXPANSION STYLES
+   ========================================== */
+
+.camera-head-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.source-pills {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 20px;
+  padding: 2px;
+  border: 1px solid #e2e8f0;
+}
+
+.source-pill {
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.source-pill:hover {
+  color: #0f172a;
+}
+
+.source-pill.active {
+  background: #0066ff;
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 102, 255, 0.25);
+}
+
+.detect-head-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.safety-toggle-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.safety-toggle-pill input[type="checkbox"] {
+  accent-color: #16a34a;
+  cursor: pointer;
+}
+
+.button.tertiary {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.button.tertiary:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.button.tertiary.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+.vision-extra-row {
+  margin-top: 10px;
+  display: flex;
+  width: 100%;
+}
+
+.openai-btn {
+  width: 100%;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 9px 14px;
+  color: #475569;
+}
+
+.openai-insight-card {
+  margin-top: 12px;
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+}
+
+.openai-insight-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.close-card-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  line-height: 1;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.close-card-btn:hover {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+.openai-insight-content {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.openai-insight-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+
+.openai-insight-content td {
+  padding: 3px 0;
+  vertical-align: top;
+}
+
+.openai-insight-content td:first-child {
+  font-weight: 700;
+  width: 120px;
+  color: #475569;
+}
+
+/* Custom ROI drawing crosshair cursor */
+.camera-panel.drawing-roi {
+  cursor: crosshair !important;
+}
+
+.camera-panel.drawing-roi #detectionCanvas {
+  cursor: crosshair !important;
+}
+
+
+/* ==========================================
+   BRAND ROBOTIC HAND ICON & SHAKING ANIMATION
+   ========================================== */
+
+.brand-hand-wrapper {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 54px !important;
+  width: 44px !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+}
+
+.brand-hand-avatar {
+  height: 52px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  object-fit: contain !important;
+  display: block !important;
+  transform-origin: 50% 90% !important; /* Wrist and palm firmly anchored */
+  animation: roboticHandShake 3.0s cubic-bezier(0.35, 0.05, 0.45, 1.0) infinite !important;
+  filter: drop-shadow(0 3px 8px rgba(0, 102, 255, 0.22)) !important;
+  pointer-events: none !important;
+  will-change: transform !important;
+}
+
+@keyframes roboticHandShake {
+  0% {
+    transform: rotate(0deg) skewX(0deg) translateX(0) scale(1);
+  }
+  16% {
+    /* Pronounced mechanical swing to the left: fingers bend */
+    transform: rotate(-11deg) skewX(-7deg) translateX(-4px) scaleY(0.97);
+  }
+  25% {
+    /* Mechanical joint micro-ratchet recoil */
+    transform: rotate(-7deg) skewX(-4deg) translateX(-2.5px) scaleY(0.98);
+  }
+  38% {
+    /* Swing through center */
+    transform: rotate(0deg) skewX(0deg) translateX(0) scale(1);
+  }
+  54% {
+    /* Pronounced mechanical swing to the right: fingers bend */
+    transform: rotate(11deg) skewX(7deg) translateX(4px) scaleY(0.97);
+  }
+  63% {
+    /* Mechanical joint micro-ratchet recoil */
+    transform: rotate(7deg) skewX(4deg) translateX(2.5px) scaleY(0.98);
+  }
+  76% {
+    /* Gentle counter-recoil */
+    transform: rotate(-3.5deg) skewX(-2deg) translateX(-1px) scale(0.995);
+  }
+  88% {
+    transform: rotate(1.5deg) skewX(1deg) translateX(0.5px) scale(0.998);
+  }
+  100% {
+    /* Seamless loop */
+    transform: rotate(0deg) skewX(0deg) translateX(0) scale(1);
+  }
+}

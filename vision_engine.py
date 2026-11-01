@@ -3,17 +3,20 @@ NAVONMESH AI Prosthetic Hand - Phase 1
 Intelligent Object Detection & Recognition Engine
 
 Features:
-- Local real-time object detection using Ultralytics YOLO (lightweight model, e.g. yolov8n.pt)
+- Local real-time object detection using Ultralytics YOLO (lightweight model: yolov8n.pt)
 - Monocular 2D webcam inference running locally (100% offline capable)
 - Multi-object detection with bounding box coordinates, confidence scores, and tiers
 - Stable object tracking across consecutive frames to smooth bounding boxes and prevent jitter
-- Automated preliminary grasp suitability assessment and grip recommendations
+- Manual ROI (Region of Interest) extraction, locking, and tracking
+- Person / Human safety exclusion to protect humans from autonomous prosthetic grasping
+- Optional OpenAI Vision API integration for advanced cloud grasp analysis
 - Cropped object thumbnail extraction for dashboard card display
 - Exponential moving average FPS computation
 """
 
 import os
 import time
+import json
 import base64
 import threading
 from typing import List, Dict, Any, Optional, Tuple
@@ -26,7 +29,6 @@ from grasp_engine import analyze_grasp, get_confidence_tier
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 os.environ.setdefault("YOLO_CONFIG_DIR", os.path.join(BASE_DIR, ".ultralytics"))
 DEFAULT_MODEL_PATH = os.path.join(BASE_DIR, "yolov8n.pt")
-
 
 
 class CentroidTracker:
@@ -58,7 +60,6 @@ class CentroidTracker:
         """
         Match incoming detections to existing tracks using IOU and class match.
         """
-        # Increment lost counter on all existing objects
         for obj_id in list(self.objects.keys()):
             self.objects[obj_id]["lost"] += 1
             if self.objects[obj_id]["lost"] > self.max_lost:
@@ -83,7 +84,6 @@ class CentroidTracker:
                         best_id = obj_id
 
             if best_id is not None:
-                # Match found: smooth bbox with previous track (exponential smoothing)
                 prev_bbox = self.objects[best_id]["bbox"]
                 smoothed_bbox = [
                     int(0.65 * bbox[0] + 0.35 * prev_bbox[0]),
@@ -99,7 +99,6 @@ class CentroidTracker:
                 det["track_id"] = best_id
                 det["bbox"] = smoothed_bbox
             else:
-                # New track
                 new_id = self.next_id
                 self.next_id += 1
                 self.objects[new_id] = {
@@ -123,6 +122,7 @@ class CentroidTracker:
 class VisionEngine:
     """
     Central vision manager handling model loading, frame inference,
+    person/human exclusion, manual ROI extraction, optional OpenAI Vision,
     grasp assessment integration, FPS calculation, and detection history.
     """
     def __init__(self, model_name: str = DEFAULT_MODEL_PATH, default_conf: float = 0.38):
@@ -134,6 +134,9 @@ class VisionEngine:
         self.device = "cpu"
         self.lock = threading.Lock()
         self.tracker = CentroidTracker()
+
+        # Person / Human safety exclusion (Default: True for prosthetic hand safety)
+        self.exclude_person = os.getenv("EXCLUDE_PERSON", "true").lower() in ("true", "1", "yes")
 
         # Operational metrics
         self.active = False
@@ -153,7 +156,6 @@ class VisionEngine:
             self.model_status = "Loading"
             try:
                 import torch
-                # Determine device: use GPU if available and CUDA is working
                 if torch.cuda.is_available():
                     self.device = "cuda"
                 else:
@@ -176,6 +178,10 @@ class VisionEngine:
         """Update confidence threshold (clamped between 0.10 and 0.95)."""
         self.conf_threshold = max(0.10, min(0.95, float(threshold)))
 
+    def set_person_exclusion(self, exclude: bool):
+        """Toggle person / human exclusion safety filter."""
+        self.exclude_person = bool(exclude)
+
     def clear_history(self):
         """Clear session detection history and reset tracker."""
         with self.lock:
@@ -189,7 +195,6 @@ class VisionEngine:
         try:
             h, w = img.shape[:2]
             x1, y1, x2, y2 = bbox
-            # Add 10% padding
             pad_x = int((x2 - x1) * 0.1)
             pad_y = int((y2 - y1) * 0.1)
             cx1 = max(0, x1 - pad_x)
@@ -201,7 +206,6 @@ class VisionEngine:
             if crop.size == 0:
                 return ""
 
-            # Resize keeping aspect ratio
             ch, cw = crop.shape[:2]
             scale = target_size / max(ch, cw)
             nw, nh = max(1, int(cw * scale)), max(1, int(ch * scale))
@@ -212,10 +216,30 @@ class VisionEngine:
         except Exception:
             return ""
 
+    @staticmethod
+    def decode_image(image_input: Any) -> Optional[np.ndarray]:
+        """Decode NumPy array, raw JPEG bytes, or base64 string into OpenCV BGR image."""
+        try:
+            if isinstance(image_input, np.ndarray):
+                return image_input
+            if isinstance(image_input, str):
+                if "," in image_input:
+                    image_input = image_input.split(",", 1)[1]
+                img_bytes = base64.b64decode(image_input)
+                np_arr = np.frombuffer(img_bytes, np.uint8)
+                return cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            if isinstance(image_input, (bytes, bytearray)):
+                np_arr = np.frombuffer(image_input, np.uint8)
+                return cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        except Exception:
+            pass
+        return None
+
     def process_frame(self, image_input: Any) -> Dict[str, Any]:
         """
-        Process a single image frame (NumPy array, raw JPEG bytes, or base64 string).
-        Runs inference, tracks objects, computes grasp assessments, and records metrics.
+        Process a single image frame.
+        Runs inference, applies human safety exclusion, tracks objects,
+        computes grasp assessments, and records metrics.
         """
         start_time = time.time()
 
@@ -227,21 +251,7 @@ class VisionEngine:
                 "detections": []
             }
 
-        # 1. Decode input into OpenCV BGR image
-        img = None
-        if isinstance(image_input, np.ndarray):
-            img = image_input
-        elif isinstance(image_input, str):
-            # Base64 string
-            if "," in image_input:
-                image_input = image_input.split(",", 1)[1]
-            img_bytes = base64.b64decode(image_input)
-            np_arr = np.frombuffer(img_bytes, np.uint8)
-            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        elif isinstance(image_input, (bytes, bytearray)):
-            np_arr = np.frombuffer(image_input, np.uint8)
-            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-
+        img = self.decode_image(image_input)
         if img is None or img.size == 0:
             return {
                 "success": False,
@@ -251,7 +261,6 @@ class VisionEngine:
 
         frame_h, frame_w = img.shape[:2]
 
-        # 2. Run YOLO Inference
         with self.lock:
             try:
                 results = self.model.predict(
@@ -268,37 +277,44 @@ class VisionEngine:
                     "detections": []
                 }
 
-        # 3. Parse Detections
         raw_detections = []
+        human_detected = False
+
         if results and len(results) > 0:
             boxes = results[0].boxes
             names = results[0].names
             if boxes is not None and len(boxes) > 0:
                 for box in boxes:
                     cls_id = int(box.cls[0].item())
-                    label = names.get(cls_id, f"obj_{cls_id}")
+                    label = names.get(cls_id, f"obj_{cls_id}").strip().lower()
                     conf = float(box.conf[0].item())
                     xyxy = box.xyxy[0].tolist()
                     x1, y1, x2, y2 = [int(v) for v in xyxy]
 
-                    # Clamp to frame dimensions
                     x1 = max(0, min(frame_w, x1))
                     y1 = max(0, min(frame_h, y1))
                     x2 = max(0, min(frame_w, x2))
                     y2 = max(0, min(frame_h, y2))
+
+                    is_human = (cls_id == 0 or label == "person")
+                    if is_human:
+                        human_detected = True
+
+                    # Person / Human exclusion: if exclude_person is active, skip adding humans to pickable targets
+                    if self.exclude_person and is_human:
+                        continue
 
                     raw_detections.append({
                         "raw_label": label,
                         "class_id": cls_id,
                         "confidence_raw": conf,
                         "bbox": [x1, y1, x2, y2],
+                        "is_human": is_human,
                         "frame_dimensions": [frame_w, frame_h]
                     })
 
-        # 4. Apply Spatial Tracking & Smoothing
         tracked_detections = self.tracker.update(raw_detections)
 
-        # 5. Enrich Detections with Grasp Intelligence & Thumbnails
         final_detections = []
         highest_conf = 0.0
 
@@ -307,13 +323,13 @@ class VisionEngine:
             bbox = det["bbox"]
             label = det["raw_label"]
             track_id = det["track_id"]
+            is_human = det.get("is_human", False)
 
             grasp_info = analyze_grasp(label, conf_raw, bbox=bbox)
             conf_pct = grasp_info["confidence"]
             if conf_pct > highest_conf:
                 highest_conf = conf_pct
 
-            # Generate thumbnail for UI card
             thumb_b64 = self._crop_thumbnail(img, bbox)
 
             det_payload = {
@@ -323,7 +339,7 @@ class VisionEngine:
                 "raw_label": label,
                 "confidence": conf_pct,
                 "confidence_level": grasp_info["confidence_level"],
-                "bbox": bbox,  # [x1, y1, x2, y2]
+                "bbox": bbox,
                 "relative_bbox": [
                     round(bbox[0] / frame_w, 4),
                     round(bbox[1] / frame_h, 4),
@@ -338,14 +354,13 @@ class VisionEngine:
                 "notes": grasp_info["notes"],
                 "disclaimer": grasp_info["disclaimer"],
                 "thumbnail": thumb_b64,
+                "is_human": is_human,
+                "safety_locked": is_human and self.exclude_person,
                 "timestamp": round(time.time(), 2)
             }
             final_detections.append(det_payload)
-
-            # Update history list (preventing duplicates within recent history)
             self._record_history(det_payload)
 
-        # 6. Compute FPS
         elapsed = time.time() - start_time
         if elapsed > 0:
             current_instant_fps = 1.0 / elapsed
@@ -358,6 +373,8 @@ class VisionEngine:
         self.latest_detections = final_detections
 
         status_text = "Objects Detected" if len(final_detections) > 0 else "No Object Detected"
+        if human_detected and self.exclude_person:
+            status_text = "Human Excluded (Safety Lock)"
 
         return {
             "success": True,
@@ -370,16 +387,165 @@ class VisionEngine:
             "model_status": self.model_status,
             "device": self.device,
             "confidence_threshold": self.conf_threshold,
+            "exclude_person": self.exclude_person,
+            "human_detected": human_detected,
             "frame_width": frame_w,
             "frame_height": frame_h
         }
 
+    def process_roi(self, image_input: Any, roi_bbox: List[int]) -> Dict[str, Any]:
+        """
+        Process a user-drawn manual Region of Interest [x1, y1, x2, y2].
+        Crops ROI, performs localized detection and returns focused grasp intelligence.
+        """
+        img = self.decode_image(image_input)
+        if img is None or img.size == 0:
+            return {"success": False, "error": "Invalid frame for ROI extraction"}
+
+        h, w = img.shape[:2]
+        x1, y1, x2, y2 = roi_bbox
+        x1 = max(0, min(w - 1, int(min(x1, x2))))
+        y1 = max(0, min(h - 1, int(min(y1, y2))))
+        x2 = max(x1 + 1, min(w, int(max(x1, x2))))
+        y2 = max(y1 + 1, min(h, int(max(y1, y2))))
+
+        crop = img[y1:y2, x1:x2]
+        if crop.size == 0:
+            return {"success": False, "error": "Selected ROI is empty"}
+
+        thumb_b64 = self._crop_thumbnail(img, [x1, y1, x2, y2], target_size=120)
+
+        # Run local YOLO on crop
+        detected_label = "Custom ROI Target"
+        detected_conf = 85.0
+        grip_type = "Precision Pinch or Palmar Wrap"
+
+        if self.model is not None:
+            try:
+                results = self.model.predict(source=crop, conf=0.25, verbose=False, device=self.device)
+                if results and len(results) > 0 and len(results[0].boxes) > 0:
+                    best_box = results[0].boxes[0]
+                    cls_id = int(best_box.cls[0].item())
+                    raw_name = results[0].names.get(cls_id, "object").strip().lower()
+                    grasp_info = analyze_grasp(raw_name, float(best_box.conf[0].item()))
+                    detected_label = grasp_info["object_name"]
+                    detected_conf = grasp_info["confidence"]
+                    grip_type = grasp_info["suggested_grip"]
+            except Exception:
+                pass
+
+        roi_data = {
+            "id": "roi_custom",
+            "label": f"Manual ROI: {detected_label}",
+            "confidence": detected_conf,
+            "bbox": [x1, y1, x2, y2],
+            "relative_bbox": [round(x1/w, 4), round(y1/h, 4), round(x2/w, 4), round(y2/h, 4)],
+            "suggested_grip": grip_type,
+            "category": "Manual Region of Interest",
+            "potential_grasp_suitability": "Manual Selection Ready",
+            "recommendation": "Target Locked by Operator",
+            "thumbnail": thumb_b64,
+            "is_manual_roi": True
+        }
+
+        return {
+            "success": True,
+            "roi": roi_data
+        }
+
+    def analyze_with_openai(self, image_input: Any, prompt: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Optional OpenAI Vision analysis for advanced grasp reasoning,
+        material classification, fragility assessment, and finger angle recommendation.
+        Requires OPENAI_API_KEY in .env.
+        """
+        api_key = os.getenv("OPENAI_API_KEY", "").strip()
+        if not api_key:
+            return {
+                "success": False,
+                "configured": False,
+                "error": "OpenAI API key not configured. Add OPENAI_API_KEY to your .env file to enable OpenAI Vision analysis."
+            }
+
+        try:
+            import requests
+
+            if isinstance(image_input, str):
+                image_url = image_input if image_input.startswith("data:") else f"data:image/jpeg;base64,{image_input}"
+            elif isinstance(image_input, np.ndarray):
+                _, buf = cv2.imencode(".jpg", image_input, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                b64 = base64.b64encode(buf).decode("utf-8")
+                image_url = f"data:image/jpeg;base64,{b64}"
+            else:
+                return {"success": False, "configured": True, "error": "Invalid image payload for OpenAI analysis."}
+
+            system_instruction = (
+                "You are an AI Prosthetics Grasp Specialist for NAVONMESH 26, a 5-finger robotic bionic hand.\n"
+                "Analyze the object in the camera image for robotic grasping.\n"
+                "Respond ONLY in structured JSON with these exact keys:\n"
+                "{\n"
+                '  "object_name": "identified object",\n'
+                '  "material": "e.g. plastic, glass, metal, paper, ceramic",\n'
+                '  "fragility": "High / Medium / Low",\n'
+                '  "weight_estimate": "estimated weight in grams",\n'
+                '  "grip_type": "Pinch / Cylindrical Wrap / Spherical / Hook / Palmar",\n'
+                '  "suitability": "Suitable / Caution / Unsuitable",\n'
+                '  "recommended_angles": [90, 90, 90, 90, 90], // Thumb, Index, Middle, Ring, Little (0-180)\n'
+                '  "safety_advice": "brief safety or handling advice for the user"\n'
+                "}"
+            )
+
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "model": os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini"),
+                "messages": [
+                    {"role": "system", "content": system_instruction},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt or "Analyze this object for prosthetic robotic hand grasping."},
+                            {"type": "image_url", "image_url": {"url": image_url, "detail": "low"}}
+                        ]
+                    }
+                ],
+                "response_format": {"type": "json_object"},
+                "max_tokens": 400,
+                "temperature": 0.2
+            }
+
+            resp = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=12)
+            if resp.status_code != 200:
+                err_msg = resp.text
+                try:
+                    err_json = resp.json()
+                    err_msg = err_json.get("error", {}).get("message", err_msg)
+                except Exception:
+                    pass
+                return {"success": False, "configured": True, "error": f"OpenAI API error ({resp.status_code}): {err_msg}"}
+
+            res_json = resp.json()
+            content_str = res_json["choices"][0]["message"]["content"]
+            analysis_data = json.loads(content_str)
+            return {
+                "success": True,
+                "configured": True,
+                "analysis": analysis_data
+            }
+        except Exception as err:
+            return {
+                "success": False,
+                "configured": True,
+                "error": f"OpenAI analysis failed: {str(err)}"
+            }
+
     def _record_history(self, det: Dict[str, Any]):
         """Maintain a recent history list of detected objects."""
-        # Find if object with same label exists in history
         for item in self.detection_history:
             if item["raw_label"] == det["raw_label"]:
-                # Update timestamp and peak confidence
                 item["last_seen"] = det["timestamp"]
                 if det["confidence"] > item["confidence"]:
                     item["confidence"] = det["confidence"]
@@ -388,7 +554,6 @@ class VisionEngine:
                         item["thumbnail"] = det["thumbnail"]
                 return
 
-        # Insert new item at the top of history (limit to 20 items)
         self.detection_history.insert(0, {
             "id": det["id"],
             "label": det["label"],
@@ -414,9 +579,11 @@ class VisionEngine:
             "device": self.device,
             "fps": round(self.fps, 1),
             "confidence_threshold": self.conf_threshold,
+            "exclude_person": self.exclude_person,
             "total_frames": self.total_frames_processed,
             "current_count": len(self.latest_detections),
-            "history_count": len(self.detection_history)
+            "history_count": len(self.detection_history),
+            "openai_configured": bool(os.getenv("OPENAI_API_KEY", "").strip())
         }
 
     def draw_detections(self, img: np.ndarray, detections: List[Dict[str, Any]]) -> np.ndarray:
@@ -426,7 +593,8 @@ class VisionEngine:
         if img is None:
             return None
         annotated = img.copy()
-        cyan_color = (255, 229, 0)  # BGR for cyan (#00e5ff)
+        cyan_color = (255, 229, 0)
+        red_color = (0, 0, 255)
 
         for det in detections:
             bbox = det.get("bbox")
@@ -438,21 +606,19 @@ class VisionEngine:
             if conf <= 1.0:
                 conf = conf * 100
 
-            # Draw bounding box
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), cyan_color, 2, cv2.LINE_AA)
+            box_color = red_color if det.get("is_human") else cyan_color
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), box_color, 2, cv2.LINE_AA)
 
-            # Label tag
             tag_text = f"{label} ({conf/100:.2f})"
             font = cv2.FONT_HERSHEY_SIMPLEX
             font_scale = 0.55
             thickness = 1
             (text_w, text_h), baseline = cv2.getTextSize(tag_text, font, font_scale, thickness)
 
-            # Tag background
             tag_y1 = max(0, y1 - text_h - 8)
             tag_y2 = y1
             tag_x2 = min(annotated.shape[1], x1 + text_w + 12)
-            cv2.rectangle(annotated, (x1, tag_y1), (tag_x2, tag_y2), cyan_color, -1)
+            cv2.rectangle(annotated, (x1, tag_y1), (tag_x2, tag_y2), box_color, -1)
             cv2.putText(annotated, tag_text, (x1 + 6, tag_y2 - 4), font, font_scale, (0, 0, 0), thickness, cv2.LINE_AA)
 
         return annotated

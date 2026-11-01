@@ -2,16 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f3f7ff"><title>NAVONMESH 26 · Prosthetic Hand Control</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=17">
+  <meta name="theme-color" content="#f3f7ff"><title>HELPING HAND · Prosthetic Hand Control</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=20">
 </head>
 <body>
 <main class="app-shell">
   <header class="topbar card">
     <a class="brand" href="/">
       <span class="brand-bar"></span>
+      <div class="brand-hand-wrapper">
+        <img src="{{ url_for('static', filename='images/helping_hand.png') }}" class="brand-hand-avatar" alt="Helping Hand Robotic Prosthetic" />
+      </div>
       <div class="brand-text">
-        <div class="brand-title">NAVONMESH <span class="brand-num">26</span></div>
+        <div class="brand-title">HELPING <span class="brand-num">HAND</span></div>
         <div class="brand-subtitle">AI Prosthetic Hand Control System</div>
       </div>
     </a>
@@ -74,58 +77,84 @@
           </span>
           <div><h2>Live Camera</h2><p>Live view and object recognition</p></div>
         </div>
-        <span id="cameraStatus" class="pill muted">Camera off</span>
+        <div class="camera-head-tools">
+          <div class="source-pills" role="radiogroup" aria-label="Camera Source Selection">
+            <button type="button" id="sourceBrowserBtn" class="source-pill active" title="Use Browser HTML5 Webcam">Browser</button>
+            <button type="button" id="sourceUsbBtn" class="source-pill" title="Use Hardware USB Camera on Windows 11 (/api/video_feed)">USB Cam</button>
+          </div>
+          <span id="cameraStatus" class="pill muted">Camera off</span>
+        </div>
       </div>
+
       <div id="cameraPanel" class="camera-panel">
         <video id="cameraVideo" autoplay playsinline muted></video>
+        <img id="usbFeedImg" src="/api/video_feed" alt="USB Hardware Video Feed" style="display:none;" />
         <canvas id="detectionCanvas"></canvas>
         <div id="cameraPlaceholder" class="placeholder">
           <span class="placeholder-icon">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z"/><path d="m18 10 4-3v10l-4-3v-4Z"/></svg>
           </span>
           <strong>Camera is ready</strong>
-          <small>Start the camera to detect objects</small>
+          <small>Start the camera to detect and track objects</small>
         </div>
         <div class="live-label"><i></i><span id="cameraOverlayText">CAMERA OFF</span></div>
         <button id="fullscreenButton" class="fullscreen" title="Fullscreen">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
         </button>
       </div>
+
       <div class="camera-actions">
         <button id="cameraToggle" class="button secondary">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
           <span>Start Camera</span>
+        </button>
+        <button id="roiToggleBtn" class="button tertiary" title="Draw manual ROI bounding box on camera to lock and track">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="2"/></svg>
+          <span>Draw ROI</span>
+        </button>
+        <button id="clearRoiBtn" class="button tertiary" style="display:none;" title="Clear manual selection box">
+          <span>Clear ROI</span>
         </button>
         <button id="captureButton" class="button primary" disabled>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M4 7h4l2-3h4l2 3h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg>
           <span>Capture Snapshot</span>
         </button>
       </div>
-      <p class="inline-hint">Snapshots are saved to your captured media gallery.</p>
+      <p class="inline-hint">Click any object box or click 'Draw ROI' to manually lock a target.</p>
     </article>
+
     <article class="card detect-card">
       <div class="section-head">
         <div class="title-wrap">
           <span class="section-icon target">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L22 12"/><path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L22 17"/></svg>
           </span>
-          <div><h2>AI Detection</h2><p>Local YOLO object analysis</p></div>
+          <div><h2>AI Detection</h2><p>Local YOLO object analysis & tracking</p></div>
         </div>
-        <span id="modelPill" class="pill muted">Loading model</span>
+        <div class="detect-head-pills">
+          <label class="safety-toggle-pill" title="Prevent prosthetic hand from targeting or grasping human beings">
+            <input type="checkbox" id="excludePersonToggle" checked>
+            <span>Safety: Exclude Person</span>
+          </label>
+          <span id="modelPill" class="pill muted">Loading model</span>
+        </div>
       </div>
+
       <div class="detection-summary">
         <div id="objectThumb" class="object-thumb">
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3m8 0h3a1 1 0 0 1 1 1v3m0 8v3a1 1 0 0 1-1 1h-3m-8 0H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg>
         </div>
         <div class="detection-fields">
-          <div><span>Focused Object</span><strong id="objectName">Waiting for camera</strong></div>
+          <div><span>Locked Target</span><strong id="objectName">Waiting for camera</strong></div>
           <div><span>Confidence</span><strong class="confidence" id="objectConfidence">—</strong></div>
           <div><span>Position</span><strong id="objectPosition">—</strong></div>
         </div>
       </div>
-      <div class="object-picker-head"><strong>Visible objects <span id="detectionCount">0</span></strong><small>Select one to focus · click a box in the camera</small></div>
+
+      <div class="object-picker-head"><strong>Visible objects <span id="detectionCount">0</span></strong><small>Click a box or list item to lock target</small></div>
       <div id="objectChoices" class="object-choices"><div class="choices-empty">Start the camera to find objects.</div></div>
       <div class="message-box" id="systemMessage">Connecting to the hand controller…</div>
+
       <div class="button-row">
         <button id="graspButton" class="button grab" disabled>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V7a2 2 0 0 1 4 0v4"/><path d="M11 9V5a2 2 0 0 1 4 0v6"/><path d="M15 10V7a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-3a2 2 0 0 1 4 0v4"/></svg>
@@ -136,7 +165,27 @@
           <span>Release</span>
         </button>
       </div>
-      <!-- Emergency Stop removed as requested; kept hidden for zero-error JS compatibility -->
+
+      <div class="vision-extra-row">
+        <button id="openaiVisionBtn" type="button" class="button tertiary openai-btn" title="Detailed grasp, material and weight estimation via OpenAI Vision API">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
+          <span>OpenAI Vision Analysis (Optional)</span>
+        </button>
+      </div>
+
+      <div id="openaiInsightCard" class="openai-insight-card" style="display:none;">
+        <div class="openai-insight-head">
+          <strong>OpenAI Vision Grasp Assessment</strong>
+          <button id="closeOpenAiInsight" type="button" class="close-card-btn">&times;</button>
+        </div>
+        <div id="openaiInsightContent" class="openai-insight-content">
+          Loading AI analysis…
+        </div>
+        <div id="openaiApplyAnglesRow" style="display:none; margin-top:8px;">
+          <button id="applyAiAnglesBtn" type="button" class="button primary">Apply Recommended Servo Angles</button>
+        </div>
+      </div>
+
       <button id="stopButton" class="button stop" style="display:none;" disabled>Emergency Stop</button>
       <small class="hint">Confirm the hand is aligned before grabbing. Keep fingers clear while testing.</small>
     </article>
@@ -280,10 +329,25 @@
   </section>
 
   <section class="card gallery-card">
-    <div class="section-head gallery-head"><div class="title-wrap"><span class="section-icon">▧</span><div><h2>Captured Media Gallery</h2><p>Saved images from your camera</p></div></div><div class="gallery-tools"><button id="galleryAll" class="filter-button active">▧ <span>Images</span> <b id="imageCount">0</b></button><label class="filter-select">⌄ <select id="galleryFilter" aria-label="Filter gallery"><option value="all">All captures</option><option value="detected">With detection</option><option value="plain">No detection</option></select></label></div></div>
+    <div class="section-head gallery-head">
+      <div class="title-wrap">
+        <span class="section-icon">▧</span>
+        <div><h2>Captured Media Gallery</h2><p>Saved images from your camera</p></div>
+      </div>
+      <div class="gallery-tools">
+        <button id="galleryAll" class="filter-button active">▧ <span>Images</span> <b id="imageCount">0</b></button>
+        <label class="filter-select">⌄ 
+          <select id="galleryFilter" aria-label="Filter gallery">
+            <option value="all">All captures</option>
+            <option value="detected">With detection</option>
+            <option value="plain">No detection</option>
+          </select>
+        </label>
+      </div>
+    </div>
     <div id="galleryGrid" class="gallery-grid"><div class="gallery-empty">Your saved snapshots will appear here.</div></div>
   </section>
-  <footer><span>NAVONMESH 26</span> · Camera detection runs locally on this computer</footer>
+  <footer><span>HELPING HAND</span> · Camera detection runs locally on this computer · Windows 11 Ready</footer>
 </main>
-<script src="{{ url_for('static', filename='app.js') }}?v=17" defer></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=19" defer></script>
 </body></html>
