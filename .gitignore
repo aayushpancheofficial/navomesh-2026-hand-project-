@@ -1,0 +1,25 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Ultralytics
+.ultralytics/
+runs/
+
+# Logs & process files
+*.log
+*.pid
+
+# Local captures
+static/captures/*.jpg
+
+# Temp files
+*.tmp
+.DS_Store
+Thumbs.db

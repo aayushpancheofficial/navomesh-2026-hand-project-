@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f7ff"><title>NAVONMESH 26 · Prosthetic Hand Control</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=11">
+</head>
+<body>
+<main class="app-shell">
+  <header class="topbar card">
+    <a class="brand" href="/"><span class="brand-mark">✋</span><span><strong>NAVONMESH <b>26</b></strong><small>AI Prosthetic Hand Control System</small></span></a>
+    <div class="header-status"><div class="status-chip"><span class="chip-icon">◉</span><span>Webcam<small id="cameraHeader">Inactive</small></span><i id="cameraDot" class="dot"></i></div><div class="status-chip"><span class="chip-icon">⬡</span><span>AI Detection<small id="aiHeader">Standby</small></span><i id="aiDot" class="dot"></i></div><div class="status-chip"><span class="chip-icon">♧</span><span>Arduino<small id="portHeader">COM3 · Offline</small></span><i id="arduinoDot" class="dot red"></i></div><button id="audioToggle" class="icon-button" title="Toggle audio alerts" aria-label="Toggle audio alerts">◖))</button></div>
+  </header>
+
+  <section class="top-grid">
+    <article class="card camera-card">
+      <div class="section-head"><div class="title-wrap"><span class="section-icon">◎</span><div><h2>Live Camera</h2><p>Live view and object recognition</p></div></div><span id="cameraStatus" class="pill muted">Camera off</span></div>
+      <div id="cameraPanel" class="camera-panel"><video id="cameraVideo" autoplay playsinline muted></video><canvas id="detectionCanvas"></canvas><div id="cameraPlaceholder" class="placeholder"><span>◎</span><strong>Camera is ready</strong><small>Start the camera to detect objects</small></div><div class="live-label"><i></i><span id="cameraOverlayText">CAMERA OFF</span></div><button id="fullscreenButton" class="fullscreen" title="Fullscreen">⛶</button></div>
+      <div class="camera-actions"><button id="cameraToggle" class="button secondary">▶ <span>Start Camera</span></button><button id="captureButton" class="button primary" disabled>▣ <span>Capture Snapshot</span></button></div>
+      <p class="inline-hint">Snapshots are saved to your captured media gallery.</p>
+    </article>
+    <article class="card detect-card">
+      <div class="section-head"><div class="title-wrap"><span class="section-icon target">⊙</span><div><h2>AI Detection</h2><p>Local YOLO object analysis</p></div></div><span id="modelPill" class="pill muted">Loading model</span></div>
+      <div class="detection-summary"><div id="objectThumb" class="object-thumb">◉</div><div class="detection-fields"><div><span>Focused Object</span><strong id="objectName">Waiting for camera</strong></div><div><span>Confidence</span><strong class="confidence" id="objectConfidence">—</strong></div><div><span>Position</span><strong id="objectPosition">—</strong></div></div></div>
+      <div class="object-picker-head"><strong>Visible objects <span id="detectionCount">0</span></strong><small>Select one to focus · click a box in the camera</small></div><div id="objectChoices" class="object-choices"><div class="choices-empty">Start the camera to find objects.</div></div>
+      <div class="message-box" id="systemMessage">Connecting to the hand controller…</div>
+      <div class="button-row"><button id="graspButton" class="button grab" disabled>✋ <span>Grab Object</span></button><button id="releaseButton" class="button release" disabled>✋ <span>Release</span></button></div>
+      <button id="stopButton" class="button stop" disabled>Emergency Stop</button>
+      <small class="hint">Confirm the hand is aligned before grabbing. Keep fingers clear while testing.</small>
+    </article>
+  </section>
+
+  <section class="card servo-card">
+    <div class="section-head"><div class="title-wrap"><span class="section-icon">⚙</span><div><h2>Servo Motor Control</h2><p>Fine tune now; saved positions sync when Arduino connects</p></div></div></div>
+    <div class="servo-layout"><div id="servoControls" class="servo-list">{% for name in ['Thumb', 'Index', 'Middle', 'Ring', 'Little'] %}{% set i = loop.index0 %}<div class="servo-row"><span class="finger-icon">♧</span><label for="slider{{ i }}">{{ name }}</label><input type="range" min="0" max="180" value="90" id="slider{{ i }}" aria-label="{{ name }} servo angle"><output id="angle{{ i }}">90°</output><span class="servo-range">0° – 180°</span><input type="checkbox" id="enable{{ i }}" checked aria-label="Enable {{ name }} servo"></div>{% endfor %}</div><aside class="range-card"><strong>Position range</strong><b>0°–180°</b><small>Adjust each finger independently</small></aside></div>
+    <div class="movement-controls"><button id="closeButton" class="button secondary" disabled>✊ <span>Close Hand</span></button><button id="openButton" class="button primary open-hand" disabled>♧ <span>Open Hand</span></button><button id="resetButton" class="button secondary" disabled>↻ <span>Reset</span></button></div>
+  </section>
+
+  <section class="card gallery-card">
+    <div class="section-head gallery-head"><div class="title-wrap"><span class="section-icon">▧</span><div><h2>Captured Media Gallery</h2><p>Saved images from your camera</p></div></div><div class="gallery-tools"><button id="galleryAll" class="filter-button active">▧ <span>Images</span> <b id="imageCount">0</b></button><label class="filter-select">⌄ <select id="galleryFilter" aria-label="Filter gallery"><option value="all">All captures</option><option value="detected">With detection</option><option value="plain">No detection</option></select></label></div></div>
+    <div id="galleryGrid" class="gallery-grid"><div class="gallery-empty">Your saved snapshots will appear here.</div></div>
+  </section>
+  <footer><span>NAVONMESH 26</span> · Camera detection runs locally on this computer</footer>
+</main>
+<script src="{{ url_for('static', filename='app.js') }}?v=11" defer></script>
+</body></html>
