@@ -17,10 +17,13 @@ function speak(message) {
   window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(message); utterance.lang = "en-IN"; window.speechSynthesis.speak(utterance);
 }
 function setConnectionState(isConnected, port, message) {
-  connected = Boolean(isConnected); const badge = el("portHeader");
-  badge.textContent = `${port || "COM?"} · ${connected ? "Connected" : "Offline"}`;
-  badge.closest(".status-chip")?.classList.toggle("connected", connected);
-  el("arduinoDot").className = `dot ${connected ? "" : "red"}`;
+  connected = Boolean(isConnected);
+  const badge = el("portHeader");
+  if (badge) badge.textContent = connected ? "Connected" : "Offline";
+  const portLabel = el("arduinoPortLabel");
+  if (portLabel) portLabel.textContent = `ARDUINO (${port || "COM3"})`;
+  badge?.closest(".status-chip")?.classList.toggle("connected", connected);
+  if (el("arduinoDot")) el("arduinoDot").className = `dot ${connected ? "" : "red"}`;
   if (connectionKnown && connected !== setConnectionState.previous) speak(connected ? "Arduino connected" : "Arduino disconnected");
   setConnectionState.previous = connected; connectionKnown = true;
   if (message && !connected) showMessage(message);

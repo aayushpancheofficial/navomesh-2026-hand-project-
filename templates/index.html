@@ -3,13 +3,33 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3f7ff"><title>NAVONMESH 26 · Prosthetic Hand Control</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=11">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=12">
 </head>
 <body>
 <main class="app-shell">
   <header class="topbar card">
-    <a class="brand" href="/"><span class="brand-mark">✋</span><span><strong>NAVONMESH <b>26</b></strong><small>AI Prosthetic Hand Control System</small></span></a>
-    <div class="header-status"><div class="status-chip"><span class="chip-icon">◉</span><span>Webcam<small id="cameraHeader">Inactive</small></span><i id="cameraDot" class="dot"></i></div><div class="status-chip"><span class="chip-icon">⬡</span><span>AI Detection<small id="aiHeader">Standby</small></span><i id="aiDot" class="dot"></i></div><div class="status-chip"><span class="chip-icon">♧</span><span>Arduino<small id="portHeader">COM3 · Offline</small></span><i id="arduinoDot" class="dot red"></i></div><button id="audioToggle" class="icon-button" title="Toggle audio alerts" aria-label="Toggle audio alerts">◖))</button></div>
+    <a class="brand" href="/">
+      <div class="brand-title">NAVONMESH <span class="brand-num">26</span></div>
+      <div class="brand-subtitle">AI Prosthetic Hand Control System</div>
+    </a>
+    <div class="header-status">
+      <div class="status-chip webcam-chip">
+        <span class="chip-label">WEBCAM</span>
+        <span id="cameraHeader" class="chip-status">Inactive</span>
+        <i id="cameraDot" style="display:none"></i>
+      </div>
+      <div class="status-chip ai-chip">
+        <span class="chip-label">AI DETECTION</span>
+        <span id="aiHeader" class="chip-status">Standby</span>
+        <i id="aiDot" style="display:none"></i>
+      </div>
+      <div class="status-chip arduino-chip">
+        <span id="arduinoPortLabel" class="chip-label">ARDUINO (COM3)</span>
+        <span id="portHeader" class="chip-status">Offline</span>
+        <i id="arduinoDot" style="display:none"></i>
+      </div>
+      <button id="audioToggle" style="display:none" title="Toggle audio alerts" aria-label="Toggle audio alerts"></button>
+    </div>
   </header>
 
   <section class="top-grid">
@@ -42,5 +62,5 @@
   </section>
   <footer><span>NAVONMESH 26</span> · Camera detection runs locally on this computer</footer>
 </main>
-<script src="{{ url_for('static', filename='app.js') }}?v=11" defer></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=12" defer></script>
 </body></html>
