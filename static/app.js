@@ -496,23 +496,23 @@ function drawDetections(detections, width, height) {
     const isLocked = (item.id === focusedObjectId && !manualRoiData);
     const isHuman = Boolean(item.is_human);
 
-    // High Transparency Inner Tint
-    ctx.fillStyle = isLocked ? "rgba(0, 229, 255, 0.12)" : (isHuman ? "rgba(239, 68, 68, 0.08)" : "rgba(56, 189, 248, 0.06)");
+    // High Transparency Inner Tint (futuristic glassmorphism)
+    ctx.fillStyle = isLocked ? "rgba(0, 229, 255, 0.08)" : (isHuman ? "rgba(239, 68, 68, 0.05)" : "rgba(56, 189, 248, 0.04)");
     ctx.fillRect(x1, y1, boxW, boxH);
 
     // Border and Corner Reticles
     if (isLocked) {
       // Sleek neon locked border
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 2.2;
       ctx.strokeStyle = "#00e5ff";
       ctx.strokeRect(x1, y1, boxW, boxH);
 
       // Precision Corner Targeting Reticles
       const bLen = Math.min(22, boxW / 3, boxH / 3);
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 3.5;
       ctx.strokeStyle = "#00ffcc";
-      ctx.shadowColor = "rgba(0, 255, 204, 0.6)";
-      ctx.shadowBlur = 6;
+      ctx.shadowColor = "rgba(0, 255, 204, 0.5)";
+      ctx.shadowBlur = 5;
 
       // Top-Left
       ctx.beginPath(); ctx.moveTo(x1, y1 + bLen); ctx.lineTo(x1, y1); ctx.lineTo(x1 + bLen, y1); ctx.stroke();
@@ -524,34 +524,40 @@ function drawDetections(detections, width, height) {
       ctx.beginPath(); ctx.moveTo(x2 - bLen, y2); ctx.lineTo(x2, y2); ctx.lineTo(x2, y2 - bLen); ctx.stroke();
       ctx.shadowBlur = 0;
 
-      // Center crosshair
+      // Center crosshair with subtle target ring
       const cx = x1 + boxW / 2, cy = y1 + boxH / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(0, 229, 255, 0.45)";
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
       ctx.lineWidth = 1.8;
       ctx.strokeStyle = "#00ffcc";
-      ctx.beginPath(); ctx.moveTo(cx - 9, cy); ctx.lineTo(cx + 9, cy); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx, cy - 9); ctx.lineTo(cx, cy + 9); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx - 8, cy); ctx.lineTo(cx + 8, cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, cy - 8); ctx.lineTo(cx, cy + 8); ctx.stroke();
     } else {
-      ctx.lineWidth = 1.8;
-      ctx.strokeStyle = isHuman ? "#ef4444" : "#38bdf8";
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = isHuman ? "rgba(239, 68, 68, 0.75)" : "rgba(56, 189, 248, 0.75)";
       ctx.strokeRect(x1, y1, boxW, boxH);
     }
 
     // High Transparency Glassmorphism Label Tag
-    const lockText = isLocked ? " · [LOCKED TARGET]" : "";
+    const lockText = isLocked ? " · LOCKED" : "";
     const label = `${item.label || item.raw_label} ${item.confidence}%${lockText}`;
-    ctx.font = "bold 13px system-ui";
+    ctx.font = "bold 12px system-ui, -apple-system, sans-serif";
     const tw = ctx.measureText(label).width;
     const tagX = Math.min(Math.max(0, x1), Math.max(0, canvas.width - tw - 18));
     const tagY = Math.max(4, y1 - 28);
 
-    // Semi-transparent tag background
-    ctx.fillStyle = isLocked ? "rgba(5, 23, 48, 0.86)" : (isHuman ? "rgba(45, 10, 10, 0.85)" : "rgba(10, 25, 47, 0.76)");
+    // Ultra-transparent glassmorphic tag background
+    ctx.fillStyle = isLocked ? "rgba(3, 16, 36, 0.62)" : (isHuman ? "rgba(40, 8, 8, 0.62)" : "rgba(8, 20, 38, 0.55)");
     ctx.beginPath();
     if (typeof ctx.roundRect === "function") {
-      ctx.roundRect(tagX, tagY, tw + 16, 25, 6);
+      ctx.roundRect(tagX, tagY, tw + 16, 24, 6);
       ctx.fill();
     } else {
-      ctx.fillRect(tagX, tagY, tw + 16, 25);
+      ctx.fillRect(tagX, tagY, tw + 16, 24);
     }
 
     // Tag border
@@ -561,7 +567,7 @@ function drawDetections(detections, width, height) {
 
     // Tag text
     ctx.fillStyle = isLocked ? "#00ffcc" : (isHuman ? "#fca5a5" : "#e0f2fe");
-    ctx.fillText(label, tagX + 8, tagY + 17);
+    ctx.fillText(label, tagX + 8, tagY + 16);
   });
 
   // 2. Draw Manual ROI if active
@@ -648,7 +654,12 @@ function getFocusedDetection() {
 
 function showDetections(detections) {
   const primary = getFocusedDetection();
-  el("objectThumb").textContent = primary ? "▣" : "◉";
+  const thumbEl = el("objectThumb");
+  if (primary && primary.thumbnail) {
+    thumbEl.innerHTML = `<img src="data:image/jpeg;base64,${primary.thumbnail}" alt="${escapeHtml(primary.label || 'Target')}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;" />`;
+  } else {
+    thumbEl.innerHTML = `<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3m8 0h3a1 1 0 0 1 1 1v3m0 8v3a1 1 0 0 1-1 1h-3m-8 0H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg>`;
+  }
 
   if (!primary) {
     el("objectName").textContent = detectionActive ? "No object in view" : "Waiting for camera";

@@ -149,9 +149,9 @@ class CentroidTracker:
 
             updated_detections.append(det)
 
-        # Anti-Drop Persistence: If a locked/strong track momentarily missed detection for 1-2 frames, keep it active
+        # Anti-Drop Persistence: If a locked/strong track momentarily missed detection for 1-3 frames, keep it active
         for obj_id, track in self.objects.items():
-            if obj_id not in matched_track_ids and track["hits"] >= 3 and track["lost"] <= 2:
+            if obj_id not in matched_track_ids and track["hits"] >= 2 and track["lost"] <= 3:
                 updated_detections.append({
                     "raw_label": track["raw_label"],
                     "class_id": 999,
@@ -354,13 +354,24 @@ class VisionEngine:
                     if self.exclude_person and is_human:
                         continue
 
-                    # Heuristic refinement for cylindrical items (paper cups, coffee cups, glasses)
-                    # that YOLOv8n falsely tags as cell phone due to text/graphics
+                    # Filter out whole-frame background false positives (e.g., room walls detected as microwave)
                     bw = x2 - x1
                     bh = y2 - y1
+                    box_area = bw * bh
+                    frame_area = frame_w * frame_h
+                    if box_area > 0.65 * frame_area:
+                        continue
+
+                    # Heuristic refinement for cylindrical items (paper cups, coffee cups, glasses, cans)
+                    # that YOLOv8n falsely tags as cell phone due to text/graphics
                     aspect = bh / max(1, bw)
-                    if label == "cell phone" and 0.80 <= aspect <= 1.85 and conf < 0.78:
-                        label = "cup"
+                    if label == "cell phone":
+                        if 0.60 <= aspect <= 1.85:
+                            label = "cup"
+                            cls_id = 41
+                        elif 1.85 < aspect <= 3.20 and bw < 0.35 * frame_w:
+                            label = "bottle"
+                            cls_id = 39
 
                     raw_detections.append({
                         "raw_label": label,
