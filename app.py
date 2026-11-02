@@ -19,6 +19,8 @@ import cv2
 import numpy as np
 
 from vision_engine import VisionEngine
+import object_learning
+from grasp_engine import calculate_servo_angles, analyze_grasp
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024
@@ -490,18 +492,76 @@ def command():
                 send_command(f"SET,{i},0")
         return jsonify({"success": True, "message": "All fingers reset to 0°."})
 
+    elif action == "GRAB_PROFILE":
+        angles = data.get("angles")
+        if not angles or len(angles) < SERVO_COUNT:
+            obj_name = data.get("object_name", "")
+            matched = object_learning.find_matching_learned_object(obj_name)
+            if matched:
+                angles = matched["servo_angles"]
+            else:
+                angles = calculate_servo_angles(obj_name)["angles"]
+
+        if emergency_stopped:
+            return jsonify({"success": False, "error": "Emergency stop is active. Resume before moving"}), 409
+
+        angles = [max(MIN_ANGLE, min(MAX_ANGLE, int(a))) for a in angles[:SERVO_COUNT]]
+
+        if arduino_ready and arduino is not None:
+            for i in range(SERVO_COUNT):
+                if servo_enabled[i]:
+                    send_command(f"SET,{i},{angles[i]}")
+                    time.sleep(0.015)
+            last_message = f"Grip executed: Thumb {angles[0]}°, Index {angles[1]}°, Middle {angles[2]}°, Ring {angles[3]}°, Little {angles[4]}°"
+        else:
+            last_message = f"Grip executed (Simulated - Arduino offline): Thumb {angles[0]}°, Index {angles[1]}°, Middle {angles[2]}°, Ring {angles[3]}°, Little {angles[4]}°"
+
+        servo_angles[:] = angles
+        save_servo_config()
+        return jsonify({
+            "success": True,
+            "message": last_message,
+            "angles": angles,
+            "connected": arduino_ready
+        })
+
     elif action == "STOP":
-        success, message = send_command("STOP")
-        if success:
-            emergency_stopped = True
+        emergency_stopped = True
+        if arduino_ready and arduino is not None:
+            send_command("STOP")
+            last_message = "Emergency stop sent to Arduino."
+        else:
+            last_message = "Emergency stop engaged (Simulation mode)."
+        return jsonify({"success": True, "message": last_message})
 
     elif action == "RESUME":
-        success, message = send_command("RESUME")
-        if success:
-            emergency_stopped = False
+        emergency_stopped = False
+        if arduino_ready and arduino is not None:
+            send_command("RESUME")
+            last_message = "Emergency stop cleared."
+        else:
+            last_message = "Resumed normal operation."
+        return jsonify({"success": True, "message": last_message})
 
     elif action == "RELEASE":
-        success, message = send_command("RELEASE")
+        release_angles = [0, 0, 0, 0, 0]
+        if arduino_ready and arduino is not None:
+            for i in range(SERVO_COUNT):
+                if servo_enabled[i]:
+                    send_command(f"SET,{i},0")
+            send_command("RELEASE")
+            last_message = "Hand released; torque disengaged."
+        else:
+            last_message = "Hand released (Simulated - fingers reset to 0°)."
+
+        servo_angles[:] = release_angles
+        save_servo_config()
+        return jsonify({
+            "success": True,
+            "message": last_message,
+            "angles": release_angles,
+            "connected": arduino_ready
+        })
 
     else:
         return jsonify({"success": False, "error": "Unknown command"}), 400
@@ -663,6 +723,51 @@ def detection_detect():
 
     if result.get("success"):
         vision_engine.latest_frame_b64 = image_b64
+        # Enrich detections with learned object matches and detailed position metrics
+        frame_w = result.get("frame_width", 640)
+        frame_h = result.get("frame_height", 480)
+        for det in result.get("detections", []):
+            bbox = det.get("bbox", [0, 0, frame_w, frame_h])
+            bx1, by1, bx2, by2 = bbox
+            cx = (bx1 + bx2) / 2
+            cy = (by1 + by2) / 2
+            bw = max(1, bx2 - bx1)
+            bh = max(1, by2 - by1)
+            area_pct = round((bw * bh) / max(1, (frame_w * frame_h)) * 100, 1)
+
+            horiz = "Left" if cx < frame_w * 0.35 else ("Right" if cx > frame_w * 0.65 else "Center")
+            vert = "Top" if cy < frame_h * 0.35 else ("Bottom" if cy > frame_h * 0.65 else "Middle")
+            aspect = round(bh / max(1, bw), 2)
+            orient_desc = "Vertical" if aspect > 1.3 else ("Horizontal" if aspect < 0.7 else "Normal")
+
+            det["position"] = {
+                "center_x": round(cx, 1),
+                "center_y": round(cy, 1),
+                "relative_x": round(cx / frame_w, 3),
+                "relative_y": round(cy / frame_h, 3),
+                "grid": f"{horiz} • {vert}",
+                "area_percent": area_pct,
+                "aspect_ratio": aspect,
+                "orientation": orient_desc,
+                "text": f"{horiz} • {vert} (X:{int(cx)}, Y:{int(cy)}) • Area: {area_pct}%"
+            }
+
+            raw_label = det.get("raw_label", "")
+            learned = object_learning.find_matching_learned_object(raw_label)
+            if learned:
+                det["learned_match"] = {
+                    "id": learned["id"],
+                    "name": learned["name"],
+                    "custom_name": learned["custom_name"],
+                    "grip_type": learned["grip_type"],
+                    "servo_angles": learned["servo_angles"]
+                }
+                det["recommended_angles"] = learned["servo_angles"]
+                det["suggested_grip"] = learned["grip_type"]
+            else:
+                calculated = calculate_servo_angles(raw_label, det.get("category", ""))
+                det["recommended_angles"] = calculated["angles"]
+
     return jsonify(result)
 
 
@@ -761,6 +866,155 @@ def gallery_delete(capture_id):
     save_captures([item for item in items if item.get("id") != capture_id])
     return jsonify({"success": True})
 
+
+
+# ==========================================
+# OBJECT LEARNING & GRIP LIBRARY API
+# ==========================================
+
+@app.route("/api/objects", methods=["GET"])
+def api_objects_list():
+    try:
+        objects = object_learning.list_learned_objects()
+        return jsonify({"success": True, "objects": objects, "count": len(objects)})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/objects", methods=["POST"])
+def api_objects_create():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"success": False, "error": "Object name is required"}), 400
+
+    saved_images = []
+    incoming_images = data.get("images", [])
+    timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    for idx, img_item in enumerate(incoming_images):
+        angle_label = img_item.get("angle_label", f"Angle {idx+1}")
+        b64_data = img_item.get("image_b64") or img_item.get("image") or ""
+
+        if b64_data and "," in b64_data:
+            try:
+                _, enc = b64_data.split(",", 1)
+                raw_bytes = base64.b64decode(enc)
+                slug = secure_filename(angle_label.lower().replace(" ", "_"))
+                fname = f"learned_{timestamp_str}_{slug}_{uuid.uuid4().hex[:4]}.jpg"
+                fpath = os.path.join(object_learning.OBJECTS_IMG_DIR, fname)
+                with open(fpath, "wb") as f:
+                    f.write(raw_bytes)
+                saved_images.append({
+                    "angle_label": angle_label,
+                    "image_path": f"/static/captures/objects/{fname}"
+                })
+            except Exception as err:
+                app.logger.warning(f"Failed to save angle image: {err}")
+        elif img_item.get("image_path"):
+            saved_images.append({
+                "angle_label": angle_label,
+                "image_path": img_item["image_path"]
+            })
+
+    try:
+        new_id = object_learning.save_learned_object(data, saved_images)
+        obj = object_learning.get_learned_object(new_id)
+        return jsonify({"success": True, "object": obj, "message": f"Successfully learned '{name}'"}), 201
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/objects/<int:object_id>", methods=["GET"])
+def api_objects_get(object_id):
+    obj = object_learning.get_learned_object(object_id)
+    if not obj:
+        return jsonify({"success": False, "error": "Object not found"}), 404
+    return jsonify({"success": True, "object": obj})
+
+
+@app.route("/api/objects/<int:object_id>", methods=["PUT"])
+def api_objects_update(object_id):
+    data = request.get_json(silent=True) or {}
+    success = object_learning.update_learned_object(object_id, data)
+    if not success:
+        return jsonify({"success": False, "error": "Object not found or update failed"}), 404
+    obj = object_learning.get_learned_object(object_id)
+    return jsonify({"success": True, "object": obj, "message": "Object updated successfully"})
+
+
+@app.route("/api/objects/<int:object_id>", methods=["DELETE"])
+def api_objects_delete(object_id):
+    success = object_learning.delete_learned_object(object_id)
+    if not success:
+        return jsonify({"success": False, "error": "Object not found"}), 404
+    return jsonify({"success": True, "message": "Object deleted successfully"})
+
+
+@app.route("/api/objects/<int:object_id>/grasp", methods=["POST"])
+def api_objects_grasp(object_id):
+    obj = object_learning.get_learned_object(object_id)
+    if not obj:
+        return jsonify({"success": False, "error": "Object not found"}), 404
+
+    angles = obj.get("servo_angles", [90, 90, 90, 90, 90])
+    if emergency_stopped:
+        return jsonify({"success": False, "error": "Emergency stop is active. Resume before moving"}), 409
+
+    if arduino_ready and arduino is not None:
+        for i in range(SERVO_COUNT):
+            if servo_enabled[i]:
+                send_command(f"SET,{i},{angles[i]}")
+                time.sleep(0.015)
+        msg = f"Grasped '{obj['name']}' with {obj['grip_type']} ({angles})"
+    else:
+        msg = f"Grasped (Simulated) '{obj['name']}' with {obj['grip_type']} ({angles})"
+
+    servo_angles[:] = angles
+    save_servo_config()
+    return jsonify({
+        "success": True,
+        "object": obj,
+        "angles": angles,
+        "message": msg
+    })
+
+
+@app.route("/api/objects/analyze_grip", methods=["POST"])
+def api_objects_analyze_grip():
+    data = request.get_json(silent=True) or {}
+    image_b64 = data.get("image")
+    bbox = data.get("bbox")
+    label = data.get("label", "")
+
+    img = None
+    if not image_b64 and usb_webcam.running and usb_webcam.latest_frame is not None:
+        img = usb_webcam.latest_frame
+    elif image_b64 and "," in image_b64:
+        try:
+            _, enc = image_b64.split(",", 1)
+            raw = base64.b64decode(enc)
+            nparr = np.frombuffer(raw, np.uint8)
+            img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Invalid image payload: {e}"}), 400
+
+    if img is None:
+        return jsonify({"success": False, "error": "A valid camera frame is required for grip analysis"}), 400
+
+    analysis = object_learning.analyze_image_geometry(img, bbox)
+    if label:
+        matched = object_learning.find_matching_learned_object(label)
+        if matched:
+            analysis["grip_type"] = matched["grip_type"]
+            analysis["recommended_angles"] = matched["servo_angles"]
+            analysis["thumb"] = matched["thumb_angle"]
+            analysis["index"] = matched["index_angle"]
+            analysis["middle"] = matched["middle_angle"]
+            analysis["ring"] = matched["ring_angle"]
+            analysis["little"] = matched["little_angle"]
+
+    return jsonify({"success": True, "analysis": analysis})
 
 if __name__ == "__main__":
     print("------------------------------------")

@@ -1,5 +1,23 @@
 [
   {
+    "id": "3e743081064b4c9b9cd7e289517ccb12",
+    "filename": "capture_20261102_065855_c4fad3.jpg",
+    "url": "/static/captures/capture_20261102_065855_c4fad3.jpg",
+    "label": "Laptop Computer",
+    "confidence": 40,
+    "type": "image",
+    "created_at": "2026-11-02T06:58+05:30"
+  },
+  {
+    "id": "df1adf73015f4f8ea5328c2ee04951a2",
+    "filename": "capture_20261102_065203_78078f.jpg",
+    "url": "/static/captures/capture_20261102_065203_78078f.jpg",
+    "label": "Cup / Mug",
+    "confidence": 90.8,
+    "type": "image",
+    "created_at": "2026-11-02T06:52+05:30"
+  },
+  {
     "id": "a16928b7bcfd496ba85c975075e7412f",
     "filename": "capture_20261102_064235_041d6e.jpg",
     "url": "/static/captures/capture_20261102_064235_041d6e.jpg",

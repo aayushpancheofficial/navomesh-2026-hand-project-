@@ -89,9 +89,10 @@ function updateControls() {
     el(`slider${i}`).disabled = stopped || !el(`enable${i}`).checked;
     el(`enable${i}`).disabled = stopped;
   }
-  ["openButton", "closeButton", "resetButton"].forEach(id => { el(id).disabled = stopped; });
-  ["stopButton", "releaseButton"].forEach(id => { el(id).disabled = !connected || stopped; });
-  el("graspButton").disabled = !connected || stopped || !detectionActive || !getFocusedDetection();
+  ["openButton", "closeButton", "resetButton"].forEach(id => { const b = el(id); if (b) b.disabled = stopped; });
+  const stopB = el("stopButton"); if (stopB) stopB.disabled = stopped;
+  const relB = el("releaseButton"); if (relB) relB.disabled = stopped;
+  const grB = el("graspButton"); if (grB) grB.disabled = stopped;
 }
 
 async function updateStatus() {
@@ -145,9 +146,9 @@ function sendAction(action, extra = {}) {
   return next;
 }
 
-async function runCommand(action, successText) {
+async function runCommand(action, successText, extra = {}) {
   try {
-    const result = await sendAction(action);
+    const result = await sendAction(action, extra);
     if (action === "STOP") stopped = true;
     if (action === "RESUME") stopped = false;
     showMessage(successText || result.message || "Command sent.");
@@ -682,7 +683,14 @@ function showDetections(detections) {
     if (cameraMode === "browser" && !primary.is_manual_roi) {
       cx = 1.0 - cx; // Mirror horizontal position to match the mirrored selfie camera view
     }
-    el("objectPosition").textContent = `${cx < 0.34 ? "Left" : cx > 0.66 ? "Right" : "Center"} · ${cy < 0.34 ? "Top" : cy > 0.66 ? "Bottom" : "Middle"}`;
+    const bw = Math.abs(r - l);
+    const bh = Math.abs(b - t);
+    const areaPct = Math.round(bw * bh * 100);
+    const horiz = cx < 0.35 ? "Left" : (cx > 0.65 ? "Right" : "Center");
+    const vert = cy < 0.35 ? "Top" : (cy > 0.65 ? "Bottom" : "Middle");
+    const aspect = bh / Math.max(0.01, bw);
+    const orient = aspect > 1.3 ? "Vertical" : (aspect < 0.7 ? "Horizontal" : "Normal");
+    el("objectPosition").textContent = primary.position?.text || `${horiz} • ${vert} (X:${Math.round(cx * 100)}%, Y:${Math.round(cy * 100)}%) • Area: ${areaPct}% • ${orient}`;
   }
 
   const choices = el("objectChoices");
@@ -953,18 +961,78 @@ el("applyAiAnglesBtn")?.addEventListener("click", async () => {
 // ==========================================
 
 async function grabDetectedObject() {
-  const target = getFocusedDetection();
-  if (!target || !connected || stopped || !detectionActive) return;
-
-  if (target.is_human && el("excludePersonToggle")?.checked) {
-    window.alert("Human Safety Lock is active. The robotic prosthetic hand is prevented from grasping a human being.");
+  if (stopped) {
+    showMessage("Emergency stop active. Click Resume before grasping.");
     return;
   }
 
-  const name = target.label || target.raw_label || "object";
-  if (!window.confirm(`Target locked: ${name} (${target.confidence}% confidence). Close the hand to grab it?`)) return;
+  const target = getFocusedDetection();
+  let name = "Object";
+  let angles = [115, 110, 115, 115, 105]; // Calibrated power grasp default
 
-  await runCommand("CLOSE", `Closing hand to grab ${name}.`);
+  if (target) {
+    if (target.is_human && el("excludePersonToggle")?.checked) {
+      window.alert("Human Safety Lock is active. The robotic prosthetic hand is prevented from grasping a human being.");
+      return;
+    }
+    name = target.label || target.raw_label || "Object";
+    if (Array.isArray(target.recommended_angles) && target.recommended_angles.length >= 5) {
+      angles = target.recommended_angles;
+    } else if (target.learned_match?.servo_angles) {
+      angles = target.learned_match.servo_angles;
+    }
+  }
+
+  showMessage(`Executing Grasp on ${name}: Thumb ${angles[0]}°, Index ${angles[1]}°, Middle ${angles[2]}°, Ring ${angles[3]}°, Little ${angles[4]}°...`);
+
+  // Immediately sync UI sliders and value labels
+  for (let i = 0; i < 5; i++) {
+    const sl = el(`slider${i}`);
+    if (sl) {
+      sl.value = angles[i];
+      const valEl = el(`angleValue${i}`) || el(`angle${i}`);
+      if (valEl) valEl.textContent = `${angles[i]}°`;
+    }
+  }
+
+  // Immediately animate 3D Robotic Hand
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.setAllFingerAngles(angles);
+  }
+
+  // Send hardware command via Flask backend to Arduino
+  await runCommand("GRAB_PROFILE", `Grip executed on ${name}`, {
+    angles: angles,
+    object_name: name
+  });
+  await updateStatus();
+}
+
+async function releaseHandObject() {
+  if (stopped) {
+    showMessage("Emergency stop active. Click Resume first.");
+    return;
+  }
+
+  showMessage("Releasing object: Opening all fingers to 0° and releasing torque...");
+
+  // Immediately sync UI sliders to 0
+  for (let i = 0; i < 5; i++) {
+    const sl = el(`slider${i}`);
+    if (sl) {
+      sl.value = 0;
+      const valEl = el(`angleValue${i}`) || el(`angle${i}`);
+      if (valEl) valEl.textContent = "0°";
+    }
+  }
+
+  // Immediately animate 3D Robotic Hand to open 0°
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.setAllFingerAngles([0, 0, 0, 0, 0]);
+  }
+
+  // Send release command
+  await runCommand("RELEASE", "Hand released. All fingers opened to 0°.");
   await updateStatus();
 }
 
@@ -1219,7 +1287,7 @@ el("closeButton")?.addEventListener("click", async () => {
 });
 
 el("stopButton")?.addEventListener("click", () => runCommand("STOP", "Emergency stop sent."));
-el("releaseButton")?.addEventListener("click", () => runCommand("RELEASE", "Servo signals released."));
+el("releaseButton")?.addEventListener("click", releaseHandObject);
 
 el("resetButton")?.addEventListener("click", async () => {
   for (let i = 0; i < SERVO_COUNT; i += 1) {
@@ -1266,3 +1334,468 @@ init3dRoboticHand();
 updateStatus();
 loadGallery();
 setInterval(updateStatus, STATUS_INTERVAL_MS);
+
+
+// ==========================================================================
+// OBJECT LEARNING & GRIP LIBRARY SUBSYSTEM
+// ==========================================================================
+
+let allLearnedObjects = [];
+let capturedAngles = {
+  Front: null,
+  Left: null,
+  Right: null,
+  Top: null
+};
+
+async function loadLearnedObjects() {
+  try {
+    const res = await fetch("/api/objects");
+    const data = await res.json();
+    if (data.success && Array.isArray(data.objects)) {
+      allLearnedObjects = data.objects;
+      renderObjectsGrid(allLearnedObjects);
+      const countEl = el("libraryCountBadge");
+      if (countEl) countEl.innerHTML = `<span>${allLearnedObjects.length} Saved Objects</span>`;
+    }
+  } catch (err) {
+    console.error("Failed to load learned objects:", err);
+  }
+}
+
+function renderObjectsGrid(objects) {
+  const grid = el("objectsGrid");
+  if (!grid) return;
+
+  if (objects.length === 0) {
+    grid.innerHTML = `<div class="choices-empty" style="grid-column: 1 / -1; padding: 24px; text-align: center;">No objects learned yet. Click "+ Learn New Object" to train an object.</div>`;
+    return;
+  }
+
+  grid.innerHTML = objects.map(obj => {
+    const angles = obj.servo_angles || [90, 90, 90, 90, 90];
+    const thumb = obj.thumbnail_url || "/static/images/helping_hand.png";
+    return `
+      <div class="object-item-card" data-obj-id="${obj.id}">
+        <div class="object-card-top">
+          <img src="${escapeHtml(thumb)}" class="object-card-thumb" alt="${escapeHtml(obj.name)}" onerror="this.src='/static/images/helping_hand.png'" />
+          <div class="object-card-info">
+            <h4 class="object-card-title">${escapeHtml(obj.name)}</h4>
+            <div class="object-card-custom">${escapeHtml(obj.custom_name || obj.category || "Learned Object")}</div>
+            <div class="object-tag-row">
+              <span class="obj-tag grip">${escapeHtml(obj.grip_type || "Power Grip")}</span>
+              <span class="obj-tag">${escapeHtml(obj.estimated_shape || "Shape: Validated")}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="object-angles-bar" title="Calibrated Servo Angles">
+          <div class="angle-badge-mini"><small>Thumb</small><strong>${angles[0]}°</strong></div>
+          <div class="angle-badge-mini"><small>Index</small><strong>${angles[1]}°</strong></div>
+          <div class="angle-badge-mini"><small>Middle</small><strong>${angles[2]}°</strong></div>
+          <div class="angle-badge-mini"><small>Ring</small><strong>${angles[3]}°</strong></div>
+          <div class="angle-badge-mini"><small>Little</small><strong>${angles[4]}°</strong></div>
+        </div>
+
+        <div class="object-card-actions">
+          <button type="button" class="btn-card-grasp" onclick="graspLearnedObject(${obj.id})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 11V7a2 2 0 0 1 4 0v4"/><path d="M11 9V5a2 2 0 0 1 4 0v6"/><path d="M15 10V7a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-3a2 2 0 0 1 4 0v4"/></svg>
+            <span>Grasp Object</span>
+          </button>
+          <button type="button" class="btn-card-preview" onclick="previewLearnedObject(${obj.id})">
+            <span>Preview 3D</span>
+          </button>
+          <button type="button" class="btn-card-del" onclick="deleteLearnedObject(${obj.id})" title="Delete Object">
+            &times;
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+// Global actions for card buttons
+window.graspLearnedObject = async function(objId) {
+  const match = allLearnedObjects.find(o => o.id === objId);
+  if (!match) return;
+
+  const angles = match.servo_angles || [90, 90, 90, 90, 90];
+  showMessage(`Executing automatic grasp for '${match.name}' (${match.grip_type})...`);
+
+  // Sync sliders
+  for (let i = 0; i < 5; i++) {
+    const sl = el(`slider${i}`);
+    if (sl) {
+      sl.value = angles[i];
+      const valEl = el(`angleValue${i}`) || el(`angle${i}`);
+      if (valEl) valEl.textContent = `${angles[i]}°`;
+    }
+  }
+
+  // Sync 3D Hand
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.setAllFingerAngles(angles);
+  }
+
+  // Send backend command
+  try {
+    const res = await fetch(`/api/objects/${objId}/grasp`, { method: "POST" });
+    const data = await res.json();
+    if (data.success) {
+      showMessage(data.message || `Grasp completed for ${match.name}`);
+    } else {
+      showMessage(data.error || "Grasp failed");
+    }
+  } catch (e) {
+    showMessage(e.message);
+  }
+};
+
+window.previewLearnedObject = function(objId) {
+  const match = allLearnedObjects.find(o => o.id === objId);
+  if (!match) return;
+
+  const angles = match.servo_angles || [90, 90, 90, 90, 90];
+  showMessage(`Previewing 3D posture for '${match.name}' (${angles.join("°, ")}°)...`);
+
+  // Sync sliders
+  for (let i = 0; i < 5; i++) {
+    const sl = el(`slider${i}`);
+    if (sl) {
+      sl.value = angles[i];
+      const valEl = el(`angleValue${i}`) || el(`angle${i}`);
+      if (valEl) valEl.textContent = `${angles[i]}°`;
+    }
+  }
+
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.setAllFingerAngles(angles);
+  }
+};
+
+window.deleteLearnedObject = async function(objId) {
+  const match = allLearnedObjects.find(o => o.id === objId);
+  if (!match) return;
+
+  if (!window.confirm(`Delete learned object '${match.name}' from SQLite database?`)) return;
+
+  try {
+    const res = await fetch(`/api/objects/${objId}`, { method: "DELETE" });
+    const data = await res.json();
+    if (data.success) {
+      showMessage(`Deleted '${match.name}' successfully.`);
+      loadLearnedObjects();
+    }
+  } catch (e) {
+    showMessage("Failed to delete object: " + e.message);
+  }
+};
+
+// Search filter
+el("objectSearchInput")?.addEventListener("input", (e) => {
+  const q = (e.target.value || "").toLowerCase().trim();
+  if (!q) {
+    renderObjectsGrid(allLearnedObjects);
+  } else {
+    const filtered = allLearnedObjects.filter(o =>
+      o.name.toLowerCase().includes(q) ||
+      (o.custom_name && o.custom_name.toLowerCase().includes(q)) ||
+      (o.grip_type && o.grip_type.toLowerCase().includes(q)) ||
+      (o.category && o.category.toLowerCase().includes(q))
+    );
+    renderObjectsGrid(filtered);
+  }
+});
+
+// Modal Open/Close
+function openLearnModal(prefillName = "") {
+  const modal = el("learningModal");
+  if (!modal) return;
+  modal.style.display = "flex";
+
+  if (prefillName) {
+    const nameInput = el("learnObjectNameInput");
+    if (nameInput) nameInput.value = prefillName;
+  }
+
+  // Reset slots
+  capturedAngles = { Front: null, Left: null, Right: null, Top: null };
+  ["Front", "Left", "Right", "Top"].forEach(slot => {
+    const slotEl = el(`slot${slot}`);
+    if (slotEl) slotEl.classList.remove("has-image");
+    const previewEl = el(`preview${slot}`);
+    if (previewEl) {
+      const icon = slot === "Front" ? "📷" : slot === "Left" ? "↻ 90°" : slot === "Right" ? "↺ 90°" : "⤹ Rim";
+      const lbl = slot === "Front" ? "Facing Camera" : slot === "Left" ? "Rotate 90° Right" : slot === "Right" ? "Show Right Side" : "Tilt Top Rim / Cap";
+      previewEl.innerHTML = `<span class="placeholder-icon">${icon}</span><small>${lbl}</small>`;
+    }
+    const delBtn = slotEl?.querySelector(".btn-slot-del");
+    if (delBtn) delBtn.style.display = "none";
+  });
+
+  const resCard = el("analysisResultCard");
+  if (resCard) resCard.style.display = "none";
+  const saveBtn = el("saveLearnedObjectBtn");
+  if (saveBtn) saveBtn.disabled = true;
+}
+
+function closeLearnModal() {
+  const modal = el("learningModal");
+  if (modal) modal.style.display = "none";
+}
+
+el("openLearnModalBtn")?.addEventListener("click", () => openLearnModal());
+el("closeLearnModalBtn")?.addEventListener("click", closeLearnModal);
+el("cancelLearnBtn")?.addEventListener("click", closeLearnModal);
+
+// Quick learn button from AI detection card
+el("quickLearnBtn")?.addEventListener("click", () => {
+  const target = getFocusedDetection();
+  const name = target ? (target.label || target.raw_label || "") : "";
+  openLearnModal(name);
+
+  // If camera is running, automatically capture current frame as Front View
+  setTimeout(() => {
+    captureSlotImage("Front", "Front View");
+  }, 200);
+});
+
+// Capture image for a slot
+function captureSlotImage(slot, angleLabel) {
+  let frameB64 = null;
+
+  if (cameraMode === "browser") {
+    const video = el("cameraVideo");
+    if (cameraStream && video.readyState >= 2) {
+      const c = document.createElement("canvas");
+      c.width = video.videoWidth || 640;
+      c.height = video.videoHeight || 480;
+      const ctx = c.getContext("2d");
+      ctx.drawImage(video, 0, 0);
+      frameB64 = c.toDataURL("image/jpeg", 0.88);
+    }
+  }
+
+  if (!frameB64) {
+    // Try to grab from detectionCanvas
+    const detCanvas = el("detectionCanvas");
+    if (detCanvas && detCanvas.width > 0) {
+      frameB64 = detCanvas.toDataURL("image/jpeg", 0.88);
+    }
+  }
+
+  if (!frameB64) {
+    showMessage("Please start camera before capturing angle.");
+    return;
+  }
+
+  capturedAngles[slot] = {
+    angle_label: angleLabel,
+    image_b64: frameB64
+  };
+
+  const slotEl = el(`slot${slot}`);
+  if (slotEl) slotEl.classList.add("has-image");
+  const previewEl = el(`preview${slot}`);
+  if (previewEl) {
+    previewEl.innerHTML = `<img src="${frameB64}" alt="${angleLabel}" />`;
+  }
+  const delBtn = slotEl?.querySelector(".btn-slot-del");
+  if (delBtn) delBtn.style.display = "flex";
+
+  // Enable analysis if front is captured
+  const saveBtn = el("saveLearnedObjectBtn");
+  if (saveBtn) saveBtn.disabled = false;
+}
+
+// Hook up slot buttons
+document.querySelectorAll(".btn-slot-cap").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const slot = btn.getAttribute("data-slot");
+    const angle = btn.getAttribute("data-angle");
+    captureSlotImage(slot, angle);
+  });
+});
+
+document.querySelectorAll(".btn-slot-del").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const slot = btn.getAttribute("data-slot");
+    capturedAngles[slot] = null;
+    const slotEl = el(`slot${slot}`);
+    if (slotEl) slotEl.classList.remove("has-image");
+    const previewEl = el(`preview${slot}`);
+    if (previewEl) {
+      previewEl.innerHTML = `<span class="placeholder-icon">📷</span><small>Recapture</small>`;
+    }
+    btn.style.display = "none";
+  });
+});
+
+// Run AI Grip Analysis
+el("runAiAnalysisBtn")?.addEventListener("click", async () => {
+  const front = capturedAngles.Front || capturedAngles.Left || capturedAngles.Right || capturedAngles.Top;
+  let imgPayload = front ? front.image_b64 : null;
+
+  if (!imgPayload) {
+    // Auto-capture front
+    captureSlotImage("Front", "Front View");
+    imgPayload = capturedAngles.Front?.image_b64;
+  }
+
+  if (!imgPayload) {
+    showMessage("Please capture at least one viewing angle before running analysis.");
+    return;
+  }
+
+  const nameVal = el("learnObjectNameInput")?.value || "";
+  showMessage("Running geometric computer vision analysis on captured angles...");
+
+  try {
+    const res = await fetch("/api/objects/analyze_grip", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image: imgPayload,
+        label: nameVal
+      })
+    });
+    const data = await res.json();
+
+    if (data.success && data.analysis) {
+      const an = data.analysis;
+      el("resShape").textContent = an.shape || "Cylindrical";
+      el("resSize").textContent = an.size || "Medium";
+      el("resOrient").textContent = an.orientation || "Vertical";
+      el("resGripType").textContent = an.grip_type || "Cylindrical Power Grip";
+
+      const angles = an.recommended_angles || [120, 110, 115, 115, 105];
+      for (let i = 0; i < 5; i++) {
+        const sl = el(`learnSlider${i}`);
+        if (sl) {
+          sl.value = angles[i];
+          const valEl = el(`valLearn${i}`);
+          if (valEl) valEl.textContent = `${angles[i]}°`;
+        }
+      }
+
+      el("analysisResultCard").style.display = "flex";
+      el("previewGrip3dBtn").style.display = "inline-flex";
+      el("saveLearnedObjectBtn").disabled = false;
+      showMessage(`AI Analysis Complete: Recommended ${an.grip_type}`);
+
+      // Live sync to 3D hand
+      if (window.RoboticHand3D) {
+        window.RoboticHand3D.setAllFingerAngles(angles);
+      }
+    } else {
+      showMessage(data.error || "Analysis failed");
+    }
+  } catch (err) {
+    showMessage("Analysis error: " + err.message);
+  }
+});
+
+// Mini sliders in modal live preview
+for (let i = 0; i < 5; i++) {
+  const sl = el(`learnSlider${i}`);
+  if (sl) {
+    sl.addEventListener("input", (e) => {
+      const val = Number(e.target.value);
+      const valEl = el(`valLearn${i}`);
+      if (valEl) valEl.textContent = `${val}°`;
+      if (window.RoboticHand3D) {
+        window.RoboticHand3D.setFingerAngle(i, val);
+      }
+    });
+  }
+}
+
+// Preview in 3D button
+el("previewGrip3dBtn")?.addEventListener("click", () => {
+  const angles = [
+    Number(el("learnSlider0")?.value || 90),
+    Number(el("learnSlider1")?.value || 90),
+    Number(el("learnSlider2")?.value || 90),
+    Number(el("learnSlider3")?.value || 90),
+    Number(el("learnSlider4")?.value || 90)
+  ];
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.setAllFingerAngles(angles);
+  }
+  showMessage(`3D Grip Posture set: [${angles.join("°, ")}°]`);
+});
+
+// Save Learned Object to SQLite
+el("saveLearnedObjectBtn")?.addEventListener("click", async () => {
+  const name = (el("learnObjectNameInput")?.value || "").trim();
+  if (!name) {
+    window.alert("Please provide an Object Name.");
+    el("learnObjectNameInput")?.focus();
+    return;
+  }
+
+  const customName = (el("learnObjectCustomInput")?.value || name).trim();
+  const category = el("learnObjectCategory")?.value || "General Object";
+  const gripType = el("resGripType")?.textContent || "Cylindrical Power Grip";
+  const shape = el("resShape")?.textContent || "Cylindrical";
+  const size = el("resSize")?.textContent || "Medium";
+  const orient = el("resOrient")?.textContent || "Vertical";
+
+  const angles = [
+    Number(el("learnSlider0")?.value || 90),
+    Number(el("learnSlider1")?.value || 90),
+    Number(el("learnSlider2")?.value || 90),
+    Number(el("learnSlider3")?.value || 90),
+    Number(el("learnSlider4")?.value || 90)
+  ];
+
+  // Collect captured images
+  const images = [];
+  ["Front", "Left", "Right", "Top"].forEach(slot => {
+    if (capturedAngles[slot]) {
+      images.push(capturedAngles[slot]);
+    }
+  });
+
+  const payload = {
+    name: name,
+    custom_name: customName,
+    category: category,
+    grip_type: gripType,
+    estimated_shape: shape,
+    estimated_size: size,
+    orientation: orient,
+    servo_angles: angles,
+    thumb_angle: angles[0],
+    index_angle: angles[1],
+    middle_angle: angles[2],
+    ring_angle: angles[3],
+    little_angle: angles[4],
+    confidence: 95.0,
+    images: images
+  };
+
+  showMessage(`Saving '${name}' to SQLite database with ${images.length} angle captures...`);
+
+  try {
+    const res = await fetch("/api/objects", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showMessage(`Object '${name}' successfully learned and saved to library!`);
+      closeLearnModal();
+      await loadLearnedObjects();
+    } else {
+      window.alert("Failed to save: " + (data.error || "Unknown error"));
+    }
+  } catch (err) {
+    window.alert("Error saving object: " + err.message);
+  }
+});
+
+// Load learned objects on page startup
+loadLearnedObjects();
