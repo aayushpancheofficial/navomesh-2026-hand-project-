@@ -154,7 +154,7 @@ def init_database():
             """, (
                 s["name"], s["custom_name"], s["category"], s["grip_type"],
                 s["thumb_angle"], s["index_angle"], s["middle_angle"], s["ring_angle"], s["little_angle"],
-                s["estimated_shape"], s["estimated_size"], s["orientation"], s["confidence"], s["notes"], s["thumbnail_url"]
+                s["estimated_shape"], s["estimated_size"], s["orientation"], s["confidence"], s["notes"], s.get("thumbnail_url", "/static/images/objects/apple.png")
             ))
         conn.commit()
 
@@ -491,3 +491,4 @@ def find_matching_learned_object(label: str) -> Optional[Dict[str, Any]]:
 
 # Initialize database upon import
 init_database()
+

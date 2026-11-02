@@ -1760,14 +1760,26 @@ function renderLibraryCards(objects) {
 
   container.innerHTML = objects.map(obj => {
     const isSelected = activeSelectedObject && activeSelectedObject.id === obj.id;
-    const thumb = obj.thumbnail_url || "/static/images/helping_hand.png";
+    let thumb = obj.thumbnail_url || "/static/images/objects/apple.png";
+    const lowerName = (obj.name || "").toLowerCase();
+    if (!thumb || thumb.includes("helping_hand.png")) {
+      if (lowerName.includes("apple")) thumb = "/static/images/objects/apple.png";
+      else if (lowerName.includes("bottle")) thumb = "/static/images/objects/bottle.png";
+      else if (lowerName.includes("cup") || lowerName.includes("mug")) thumb = "/static/images/objects/cup.png";
+      else if (lowerName.includes("mobile") || lowerName.includes("phone")) thumb = "/static/images/objects/mobile.png";
+      else thumb = "/static/images/objects/apple.png";
+    }
+
     return `
-      <div class="library-obj-card ${isSelected ? 'selected' : ''}" data-id="${obj.id}" onclick="selectObjectProfile(${obj.id})">
+      <div class="library-obj-card ${isSelected ? 'selected' : ''}" data-id="${obj.id}" onclick="selectObjectProfile(${obj.id})" title="Select ${escapeHtml(obj.name)}">
         <span class="card-check-pill">✓</span>
-        <img src="${escapeHtml(thumb)}" class="obj-card-img" alt="${escapeHtml(obj.name)}" onerror="this.src='/static/images/helping_hand.png'" />
+        <span class="card-menu-dots">⋮</span>
+        <button type="button" class="btn-del-obj" onclick="event.stopPropagation(); deleteLearnedObject(${obj.id})" title="Delete">&times;</button>
+        <div class="obj-card-thumb-wrap">
+          <img src="${escapeHtml(thumb)}" class="obj-card-img" alt="${escapeHtml(obj.name)}" onerror="this.src='/static/images/objects/apple.png'" />
+        </div>
         <strong class="obj-card-name">${escapeHtml(obj.name)}</strong>
         <span class="obj-card-grip">${escapeHtml(obj.grip_type || "Power Grip")}</span>
-        <button type="button" class="btn-del-obj" onclick="event.stopPropagation(); deleteLearnedObject(${obj.id})" title="Delete">&times;</button>
       </div>
     `;
   }).join("");
@@ -1805,7 +1817,7 @@ function selectObjectProfile(objId) {
   if (posEl) posEl.textContent = "Calibrated Target • Verified Posture";
 
   const imgEl = el("targetThumbImg");
-  if (imgEl) imgEl.src = obj.thumbnail_url || "/static/images/helping_hand.png";
+  if (imgEl) imgEl.src = (obj.thumbnail_url && !obj.thumbnail_url.includes("helping_hand.png")) ? obj.thumbnail_url : "/static/images/objects/apple.png";
 
   // Sync Calculated Grip (AI) 5 angle display
   for (let i = 0; i < 5; i++) {
