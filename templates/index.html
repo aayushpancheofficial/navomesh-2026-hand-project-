@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3f7ff"><title>HELPING HAND · Prosthetic Hand Control</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=25">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=26">
 </head>
 <body>
 <main class="app-shell">
@@ -244,54 +244,13 @@
             <text x="166" y="117" fill="#64748b" font-size="11" font-weight="700">180°</text>
           </svg>
 
-          <div class="robotic-hand-illustration">
-            <svg width="120" height="130" viewBox="0 0 120 135" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="25" y="66" width="70" height="48" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-              <rect x="33" y="72" width="54" height="34" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5"/>
-              <rect x="37" y="114" width="46" height="18" rx="6" fill="#1e293b"/>
-              <circle cx="48" cy="123" r="4" fill="#0066ff"/>
-              <circle cx="60" cy="123" r="4" fill="#0066ff"/>
-              <circle cx="72" cy="123" r="4" fill="#0066ff"/>
-              
-              <!-- Thumb -->
-              <g class="hand-finger" id="gfxThumb">
-                <rect x="10" y="68" width="16" height="18" rx="6" transform="rotate(-30 10 68)" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-                <circle cx="16" cy="76" r="2.5" fill="#1e293b"/>
-                <rect x="2" y="54" width="14" height="18" rx="5" transform="rotate(-35 2 54)" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-              </g>
-
-              <!-- Index -->
-              <g class="hand-finger" id="gfxIndex">
-                <rect x="32" y="42" width="13" height="26" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-                <rect x="34" y="52" width="9" height="3" rx="1" fill="#1e293b"/>
-                <rect x="32" y="18" width="13" height="24" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-                <rect x="34" y="28" width="9" height="3" rx="1" fill="#1e293b"/>
-              </g>
-
-              <!-- Middle -->
-              <g class="hand-finger" id="gfxMiddle">
-                <rect x="49" y="36" width="13" height="32" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-                <rect x="51" y="48" width="9" height="3" rx="1" fill="#1e293b"/>
-                <rect x="49" y="10" width="13" height="26" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-                <rect x="51" y="22" width="9" height="3" rx="1" fill="#1e293b"/>
-              </g>
-
-              <!-- Ring -->
-              <g class="hand-finger" id="gfxRing">
-                <rect x="66" y="42" width="13" height="26" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-                <rect x="68" y="52" width="9" height="3" rx="1" fill="#1e293b"/>
-                <rect x="66" y="20" width="13" height="22" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-                <rect x="68" y="30" width="9" height="3" rx="1" fill="#1e293b"/>
-              </g>
-
-              <!-- Little -->
-              <g class="hand-finger" id="gfxLittle">
-                <rect x="83" y="50" width="12" height="22" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-                <rect x="85" y="58" width="8" height="3" rx="1" fill="#1e293b"/>
-                <rect x="83" y="32" width="12" height="18" rx="5" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-                <rect x="85" y="40" width="8" height="3" rx="1" fill="#1e293b"/>
-              </g>
-            </svg>
+          <!-- Interactive 3D Robotic Hand Viewport (Three.js WebGL) -->
+          <div id="hand3dContainer" class="hand-3d-wrap" title="Click & Drag to rotate 3D Hand (Double-click to reset view)">
+            <!-- Three.js Canvas injected here -->
+          </div>
+          <div class="hand-3d-controls-hint">
+            <span class="hint-badge">⌖ Drag to Rotate 3D Hand</span>
+            <button id="resetView3dBtn" type="button" class="view-reset-pill" title="Reset camera view">↺ Reset View</button>
           </div>
         </div>
       </aside>
@@ -349,5 +308,7 @@
   </section>
   <footer><span>HELPING HAND</span> · Camera detection runs locally on this computer · Windows 11 Ready</footer>
 </main>
-<script src="{{ url_for('static', filename='app.js') }}?v=25" defer></script>
+<script src="{{ url_for('static', filename='vendor/three.min.js') }}"></script>
+<script src="{{ url_for('static', filename='hand_3d.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=26" defer></script>
 </body></html>

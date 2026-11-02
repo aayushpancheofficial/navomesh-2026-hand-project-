@@ -107,6 +107,9 @@ async function updateStatus() {
         if (document.activeElement !== sl) {
           sl.value = angle;
           updateSliderVisuals(sl);
+          if (window.RoboticHand3D) {
+            window.RoboticHand3D.setFingerAngle(i, angle);
+          }
         }
         el(`angle${i}`).textContent = `${angle}°`;
       });
@@ -114,6 +117,9 @@ async function updateStatus() {
     if (Array.isArray(data.enabled)) {
       data.enabled.forEach((enabled, i) => {
         el(`enable${i}`).checked = enabled;
+        if (window.RoboticHand3D) {
+          window.RoboticHand3D.setFingerEnabled(i, enabled);
+        }
       });
     }
     if (!connected) showMessage(data.message || "Arduino is offline. Camera and AI tracking work without the hand controller.");
@@ -936,6 +942,9 @@ el("applyAiAnglesBtn")?.addEventListener("click", async () => {
       sendAction("SET", { index: i, angle });
     }
   }
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.setAllFingerAngles(recommendedAiAngles);
+  }
   showMessage("Applied OpenAI recommended servo angles to prosthetic hand fingers.");
 });
 
@@ -1079,6 +1088,10 @@ for (let i = 0; i < SERVO_COUNT; i += 1) {
     const angle = Number(slider.value);
     el(`angle${i}`).textContent = `${angle}°`;
     updateSliderVisuals(slider);
+    // Real-time synchronization with 3D Robotic Hand model
+    if (window.RoboticHand3D) {
+      window.RoboticHand3D.setFingerAngle(i, angle);
+    }
     clearTimeout(sliderTimers[i]);
     if (!stopped && checkbox.checked) {
       sliderTimers[i] = setTimeout(async () => {
@@ -1093,6 +1106,10 @@ for (let i = 0; i < SERVO_COUNT; i += 1) {
   });
 
   checkbox.addEventListener("change", async () => {
+    // Reflect enable/disable in 3D model
+    if (window.RoboticHand3D) {
+      window.RoboticHand3D.setFingerEnabled(i, checkbox.checked);
+    }
     try {
       const result = await sendAction("ENABLE", { index: i, enabled: checkbox.checked });
       updateControls();
@@ -1131,6 +1148,9 @@ el("openButton")?.addEventListener("click", async () => {
   }
   updateGaugeDisplay(30);
   updatePoseHighlight("open");
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.openHand(30);
+  }
   await runCommand("OPEN", "Hand opened to 30°.");
 });
 
@@ -1146,6 +1166,9 @@ el("closeButton")?.addEventListener("click", async () => {
   }
   updateGaugeDisplay(150);
   updatePoseHighlight("close");
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.closeHand(150);
+  }
   await runCommand("CLOSE", "Hand closed to 150°.");
 });
 
@@ -1164,6 +1187,9 @@ el("resetButton")?.addEventListener("click", async () => {
   }
   updateGaugeDisplay(0);
   updatePoseHighlight("reset");
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.resetHand();
+  }
   await runCommand("RESET", "Finger positions reset to 0°.");
 });
 
@@ -1173,7 +1199,24 @@ el("galleryAll")?.addEventListener("click", () => {
   renderGallery();
 });
 
+// 3D Robotic Hand Initialization & Synchronization
+function init3dRoboticHand() {
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.init("hand3dContainer");
+    for (let i = 0; i < SERVO_COUNT; i++) {
+      const sl = el(`slider${i}`);
+      const cb = el(`enable${i}`);
+      if (sl) window.RoboticHand3D.setFingerAngle(i, Number(sl.value));
+      if (cb) window.RoboticHand3D.setFingerEnabled(i, cb ? cb.checked : true);
+    }
+  }
+  el("resetView3dBtn")?.addEventListener("click", () => {
+    if (window.RoboticHand3D) window.RoboticHand3D.resetOrientation();
+  });
+}
+
 // Initialization
+init3dRoboticHand();
 updateStatus();
 loadGallery();
 setInterval(updateStatus, STATUS_INTERVAL_MS);

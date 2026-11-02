@@ -501,6 +501,65 @@
   filter: drop-shadow(0 6px 12px rgba(15, 23, 42, 0.08)) !important;
 }
 
+/* 3D Interactive Robotic Hand Viewport */
+.hand-3d-wrap {
+  width: 100% !important;
+  height: 205px !important;
+  position: relative !important;
+  margin-top: -65px !important;
+  z-index: 2 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  user-select: none !important;
+  touch-action: none !important;
+}
+
+.hand-3d-webgl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  cursor: grab !important;
+  filter: drop-shadow(0 8px 16px rgba(15, 23, 42, 0.08)) !important;
+}
+
+.hand-3d-webgl-canvas:active {
+  cursor: grabbing !important;
+}
+
+.hand-3d-controls-hint {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  padding: 0 4px !important;
+  margin-top: 2px !important;
+  z-index: 3 !important;
+}
+
+.hint-badge {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  color: #64748b !important;
+  letter-spacing: -0.2px !important;
+}
+
+.view-reset-pill {
+  border: 1px solid #cbd5e1 !important;
+  background: #f8fafc !important;
+  color: #0066ff !important;
+  border-radius: 999px !important;
+  padding: 2px 9px !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.view-reset-pill:hover {
+  background: #eff6ff !important;
+  border-color: #93c5fd !important;
+}
+
 /* Movement Control Buttons */
 .movement-controls {
   display: grid !important;
