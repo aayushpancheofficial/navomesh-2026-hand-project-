@@ -970,19 +970,65 @@ async function grabDetectedObject() {
 
 async function captureSnapshot() {
   const canvas = document.createElement("canvas");
-  const video = el("cameraVideo");
+  const detCanvas = el("detectionCanvas");
+  let ctx = null;
 
   if (cameraMode === "browser") {
-    if (!cameraStream || video.readyState < 2) return;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
+    const video = el("cameraVideo");
+    if (!cameraStream || video.readyState < 2) {
+      showMessage("Camera not ready for snapshot.");
+      return;
+    }
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    ctx = canvas.getContext("2d");
+
+    // 1. Draw raw video feed (mirrored to match selfie view)
+    ctx.save();
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(video, 0, 0);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+  } else {
+    // USB Camera Mode
+    const streamImg = el("cameraStreamImg");
+    canvas.width = streamImg?.naturalWidth || frameCanvas?.width || 640;
+    canvas.height = streamImg?.naturalHeight || frameCanvas?.height || 480;
+    ctx = canvas.getContext("2d");
+
+    if (streamImg && streamImg.complete && streamImg.naturalWidth > 0) {
+      ctx.drawImage(streamImg, 0, 0, canvas.width, canvas.height);
+    } else if (lastFrameImageB64) {
+      const tempImg = new Image();
+      await new Promise(res => {
+        tempImg.onload = res;
+        tempImg.onerror = res;
+        tempImg.src = lastFrameImageB64;
+      });
+      ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+    }
   }
 
-  const image = (cameraMode === "browser") ? canvas.toDataURL("image/jpeg", 0.9) : lastFrameImageB64;
+  // 2. Composite AI Detection Layer (Bounding boxes, labels, targeting reticles, manual ROI)
+  if (detCanvas && detCanvas.width > 0 && detCanvas.height > 0) {
+    ctx.drawImage(detCanvas, 0, 0, canvas.width, canvas.height);
+  }
+
+  // 3. Add sleek timestamp & HUD banner in bottom-right corner
+  const dateStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const countStr = currentDetections.length ? `${currentDetections.length} OBJECTS DETECTED` : 'AI CAMERA SNAPSHOT';
+  const tagText = `HELPING HAND · ${countStr} · ${dateStr}`;
+  ctx.font = "bold 11px system-ui, sans-serif";
+  const tw = ctx.measureText(tagText).width;
+  ctx.fillStyle = "rgba(5, 15, 30, 0.65)";
+  ctx.fillRect(canvas.width - tw - 24, canvas.height - 28, tw + 18, 22);
+  ctx.strokeStyle = "rgba(0, 229, 255, 0.4)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(canvas.width - tw - 24, canvas.height - 28, tw + 18, 22);
+  ctx.fillStyle = "#00e5ff";
+  ctx.fillText(tagText, canvas.width - tw - 15, canvas.height - 13);
+
+  const image = canvas.toDataURL("image/jpeg", 0.92);
   if (!image) return;
 
   try {
@@ -993,7 +1039,7 @@ async function captureSnapshot() {
     });
     const data = await response.json();
     if (!response.ok || !data.success) throw new Error(data.error || "Save failed");
-    showMessage("Snapshot saved to the gallery.");
+    showMessage("Detected AI snapshot saved to the gallery!");
     await loadGallery();
   } catch (error) {
     showMessage(`Could not save snapshot: ${error.message}`);
