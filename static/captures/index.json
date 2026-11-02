@@ -1,5 +1,41 @@
 [
   {
+    "id": "a16928b7bcfd496ba85c975075e7412f",
+    "filename": "capture_20261102_064235_041d6e.jpg",
+    "url": "/static/captures/capture_20261102_064235_041d6e.jpg",
+    "label": "Document / Certificate / Card",
+    "confidence": 45.1,
+    "type": "image",
+    "created_at": "2026-11-02T06:42+05:30"
+  },
+  {
+    "id": "f050d5c11169428baf0f76b5ba3dd7db",
+    "filename": "capture_20261102_064225_eaada4.jpg",
+    "url": "/static/captures/capture_20261102_064225_eaada4.jpg",
+    "label": "Document / Certificate / Card",
+    "confidence": 52,
+    "type": "image",
+    "created_at": "2026-11-02T06:42+05:30"
+  },
+  {
+    "id": "32bd344aef05440f98fac6a14dd35249",
+    "filename": "capture_20261102_064214_99b389.jpg",
+    "url": "/static/captures/capture_20261102_064214_99b389.jpg",
+    "label": "Document / Certificate / Card",
+    "confidence": 66,
+    "type": "image",
+    "created_at": "2026-11-02T06:42+05:30"
+  },
+  {
+    "id": "2099d996086e429782161a0642b7d6de",
+    "filename": "capture_20261102_064026_03f4ec.jpg",
+    "url": "/static/captures/capture_20261102_064026_03f4ec.jpg",
+    "label": "Mobile Phone",
+    "confidence": 67.9,
+    "type": "image",
+    "created_at": "2026-11-02T06:40+05:30"
+  },
+  {
     "id": "54cf1e4005794eb1a8db9b10c1e0713b",
     "filename": "capture_20261102_062140_7ce619.jpg",
     "url": "/static/captures/capture_20261102_062140_7ce619.jpg",

@@ -8,7 +8,7 @@
 /* --- Topbar Header Style (Matching Exact Reference Screenshot with Pencil Sketch & Hatching) --- */
 .topbar {
   background-color: #ffffff !important;
-  background-image: url('/static/images/topbar_pencil_bg.png') !important;
+  background-image: url('/static/images/topbar_pencil_bg.png?v=2') !important;
   background-repeat: no-repeat !important;
   background-position: center center !important;
   background-size: 100% 100% !important;
