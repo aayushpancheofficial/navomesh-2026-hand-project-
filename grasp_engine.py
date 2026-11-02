@@ -90,6 +90,22 @@ GRASP_PROFILES: Dict[str, Dict[str, str]] = {
         "recommendation": "Requires further evaluation",
         "notes": "Thin books lying flat require lifting edge first."
     },
+    "document": {
+        "display_name": "Document / Certificate / Card",
+        "category": "Flat Handheld Object",
+        "grasp_suitability": "Suitable for precision pinch grasping",
+        "suggested_grip": "Precision / Lateral Pinch Grip",
+        "recommendation": "Pick with Pinch Grip",
+        "notes": "Thin card or document requires fingertip precision pinch."
+    },
+    "card": {
+        "display_name": "ID Card / Badge",
+        "category": "Flat Handheld Object",
+        "grasp_suitability": "Suitable for precision pinch grasping",
+        "suggested_grip": "Precision / Lateral Pinch Grip",
+        "recommendation": "Pick with Pinch Grip",
+        "notes": "Fingertip precision pinch recommended along edges."
+    },
     "pen": {
         "display_name": "Pen / Pencil",
         "category": "Thin Cylindrical Tool",

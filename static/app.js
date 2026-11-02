@@ -484,8 +484,9 @@ function drawDetections(detections, width, height) {
   const sx = canvas.width / (width || 640);
   const sy = canvas.height / (height || 480);
 
-  // 1. Draw detected objects
-  detections.forEach(item => {
+  // 1. Draw detected objects (hide auto-detections when manual ROI is active to avoid overlapping confusion)
+  if (!manualRoi) {
+    detections.forEach(item => {
     let [rawX1, y1, rawX2, y2] = item.bbox.map((v, axis) => v * (axis % 2 ? sy : sx));
     // Mirror horizontally for browser webcam to feel natural (front mirror)
     const x1 = (cameraMode === "browser") ? canvas.width - rawX2 : rawX1;
@@ -568,7 +569,8 @@ function drawDetections(detections, width, height) {
     // Tag text
     ctx.fillStyle = isLocked ? "#00ffcc" : (isHuman ? "#fca5a5" : "#e0f2fe");
     ctx.fillText(label, tagX + 8, tagY + 16);
-  });
+    });
+  }
 
   // 2. Draw Manual ROI if active
   if (manualRoi) {
@@ -669,7 +671,11 @@ function showDetections(detections) {
     el("objectName").textContent = primary.label || primary.raw_label || "Object";
     el("objectConfidence").textContent = `${primary.confidence}%`;
     const [l, t, r, b] = primary.relative_bbox || [0, 0, 1, 1];
-    const cx = (l + r) / 2, cy = (t + b) / 2;
+    let cx = (l + r) / 2;
+    const cy = (t + b) / 2;
+    if (cameraMode === "browser" && !primary.is_manual_roi) {
+      cx = 1.0 - cx; // Mirror horizontal position to match the mirrored selfie camera view
+    }
     el("objectPosition").textContent = `${cx < 0.34 ? "Left" : cx > 0.66 ? "Right" : "Center"} · ${cy < 0.34 ? "Top" : cy > 0.66 ? "Bottom" : "Middle"}`;
   }
 
@@ -753,16 +759,34 @@ canvas.addEventListener("mouseup", async event => {
       el("cameraPanel")?.classList.remove("drawing-roi");
       el("clearRoiBtn").style.display = "inline-flex";
 
+      // Convert canvas mirrored coordinates to raw image frame coordinates
+      const fw = frameCanvas?.width || 640;
+      const fh = frameCanvas?.height || 480;
+      const scaleX = fw / canvas.width;
+      const scaleY = fh / canvas.height;
+      let frameX1 = Math.round(x1 * scaleX);
+      let frameX2 = Math.round(x2 * scaleX);
+      let frameY1 = Math.round(y1 * scaleY);
+      let frameY2 = Math.round(y2 * scaleY);
+
+      if (cameraMode === "browser") {
+        const origX1 = frameX1;
+        frameX1 = Math.max(0, fw - frameX2);
+        frameX2 = Math.min(fw, fw - origX1);
+      }
+
       showMessage("Analyzing manual Region of Interest...");
       try {
         const resp = await fetch("/api/detection/roi", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roi: manualRoi, image: lastFrameImageB64 })
+          body: JSON.stringify({ roi: [frameX1, frameY1, frameX2, frameY2], image: lastFrameImageB64 })
         });
         const roiResult = await resp.json();
         if (roiResult.success && roiResult.roi) {
           manualRoiData = roiResult.roi;
+          manualRoiData.relative_bbox = [x1 / canvas.width, y1 / canvas.height, x2 / canvas.width, y2 / canvas.height];
+          manualRoiData.is_manual_roi = true;
           showMessage(`Manual ROI locked on: ${manualRoiData.label}. Hand ready to grasp.`);
         }
       } catch (_) {
@@ -770,8 +794,9 @@ canvas.addEventListener("mouseup", async event => {
           id: "roi_custom",
           label: "Manual ROI Target",
           confidence: 90,
-          suggested_grip: "Palmar / Pinch Grip",
-          relative_bbox: [x1 / canvas.width, y1 / canvas.height, x2 / canvas.width, y2 / canvas.height]
+          suggested_grip: "Precision / Pinch Grip",
+          relative_bbox: [x1 / canvas.width, y1 / canvas.height, x2 / canvas.width, y2 / canvas.height],
+          is_manual_roi: true
         };
       }
       drawDetections(currentDetections, frameCanvas?.width || 640, frameCanvas?.height || 480);

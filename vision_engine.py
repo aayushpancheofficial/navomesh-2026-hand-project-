@@ -362,14 +362,21 @@ class VisionEngine:
                     if box_area > 0.65 * frame_area:
                         continue
 
-                    # Heuristic refinement for cylindrical items (paper cups, coffee cups, glasses, cans)
-                    # that YOLOv8n falsely tags as cell phone due to text/graphics
+                    # Accurate heuristic refinement for handheld items:
+                    # YOLOv8 nano frequently flags cards, certificates, documents, and coffee cups with text as "cell phone".
+                    # We accurately classify based on geometry and aspect ratios:
                     aspect = bh / max(1, bw)
                     if label == "cell phone":
-                        if 0.60 <= aspect <= 1.85:
+                        if 0.88 <= aspect <= 1.28:
+                            # Squarish / compact cylinder (coffee cup, tea mug, can)
                             label = "cup"
                             cls_id = 41
-                        elif 1.85 < aspect <= 3.20 and bw < 0.35 * frame_w:
+                        elif 1.28 < aspect <= 1.68:
+                            # A4 / certificate / badge / card ratio (sqrt(2) = 1.414)
+                            label = "document"
+                            cls_id = 991
+                        elif 1.68 < aspect <= 3.20 and bw < 0.35 * frame_w and aspect > 2.25:
+                            # Tall slender drinkware
                             label = "bottle"
                             cls_id = 39
 
@@ -496,6 +503,12 @@ class VisionEngine:
                     best_box = results[0].boxes[0]
                     cls_id = int(best_box.cls[0].item())
                     raw_name = results[0].names.get(cls_id, "object").strip().lower()
+                    if raw_name == "cell phone":
+                        c_aspect = crop.shape[0] / max(1, crop.shape[1])
+                        if 0.88 <= c_aspect <= 1.28:
+                            raw_name = "cup"
+                        elif 1.28 < c_aspect <= 1.68:
+                            raw_name = "document"
                     grasp_info = analyze_grasp(raw_name, float(best_box.conf[0].item()))
                     detected_label = grasp_info["object_name"]
                     detected_conf = grasp_info["confidence"]
