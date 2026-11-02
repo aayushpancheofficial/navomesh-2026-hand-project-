@@ -1337,445 +1337,356 @@ setInterval(updateStatus, STATUS_INTERVAL_MS);
 
 
 // ==========================================================================
-// OBJECT LEARNING & GRIP LIBRARY SUBSYSTEM
+// 7-STEP OBJECT LEARNING, MULTI-ANGLE CAPTURE & AUTOMATIC GRIPPING SUBSYSTEM
 // ==========================================================================
 
-let allLearnedObjects = [];
+let savedObjectsList = [];
+let activeSelectedObject = null;
+let currentGripAngles = [110, 125, 130, 125, 115]; // Default calibrated power grip
+
+// 6 Angle slots state
+const ANGLE_SLOTS = ["Front", "Back", "Left", "Right", "Top", "Bottom"];
 let capturedAngles = {
   Front: null,
+  Back: null,
   Left: null,
   Right: null,
-  Top: null
+  Top: null,
+  Bottom: null
 };
 
-async function loadLearnedObjects() {
-  try {
-    const res = await fetch("/api/objects");
-    const data = await res.json();
-    if (data.success && Array.isArray(data.objects)) {
-      allLearnedObjects = data.objects;
-      renderObjectsGrid(allLearnedObjects);
-      const countEl = el("libraryCountBadge");
-      if (countEl) countEl.innerHTML = `<span>${allLearnedObjects.length} Saved Objects</span>`;
-    }
-  } catch (err) {
-    console.error("Failed to load learned objects:", err);
-  }
-}
+// --- Step 1: Open / Close Side Drawer ---
+function openSideDrawer(step = 1, defaultName = "") {
+  const drawer = el("sideDrawer");
+  const backdrop = el("sideDrawerBackdrop");
+  if (!drawer) return;
 
-function renderObjectsGrid(objects) {
-  const grid = el("objectsGrid");
-  if (!grid) return;
+  drawer.classList.add("open");
+  if (backdrop) backdrop.style.display = "block";
 
-  if (objects.length === 0) {
-    grid.innerHTML = `<div class="choices-empty" style="grid-column: 1 / -1; padding: 24px; text-align: center;">No objects learned yet. Click "+ Learn New Object" to train an object.</div>`;
-    return;
-  }
+  goToDrawerStep(step);
 
-  grid.innerHTML = objects.map(obj => {
-    const angles = obj.servo_angles || [90, 90, 90, 90, 90];
-    const thumb = obj.thumbnail_url || "/static/images/helping_hand.png";
-    return `
-      <div class="object-item-card" data-obj-id="${obj.id}">
-        <div class="object-card-top">
-          <img src="${escapeHtml(thumb)}" class="object-card-thumb" alt="${escapeHtml(obj.name)}" onerror="this.src='/static/images/helping_hand.png'" />
-          <div class="object-card-info">
-            <h4 class="object-card-title">${escapeHtml(obj.name)}</h4>
-            <div class="object-card-custom">${escapeHtml(obj.custom_name || obj.category || "Learned Object")}</div>
-            <div class="object-tag-row">
-              <span class="obj-tag grip">${escapeHtml(obj.grip_type || "Power Grip")}</span>
-              <span class="obj-tag">${escapeHtml(obj.estimated_shape || "Shape: Validated")}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="object-angles-bar" title="Calibrated Servo Angles">
-          <div class="angle-badge-mini"><small>Thumb</small><strong>${angles[0]}°</strong></div>
-          <div class="angle-badge-mini"><small>Index</small><strong>${angles[1]}°</strong></div>
-          <div class="angle-badge-mini"><small>Middle</small><strong>${angles[2]}°</strong></div>
-          <div class="angle-badge-mini"><small>Ring</small><strong>${angles[3]}°</strong></div>
-          <div class="angle-badge-mini"><small>Little</small><strong>${angles[4]}°</strong></div>
-        </div>
-
-        <div class="object-card-actions">
-          <button type="button" class="btn-card-grasp" onclick="graspLearnedObject(${obj.id})">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 11V7a2 2 0 0 1 4 0v4"/><path d="M11 9V5a2 2 0 0 1 4 0v6"/><path d="M15 10V7a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-3a2 2 0 0 1 4 0v4"/></svg>
-            <span>Grasp Object</span>
-          </button>
-          <button type="button" class="btn-card-preview" onclick="previewLearnedObject(${obj.id})">
-            <span>Preview 3D</span>
-          </button>
-          <button type="button" class="btn-card-del" onclick="deleteLearnedObject(${obj.id})" title="Delete Object">
-            &times;
-          </button>
-        </div>
-      </div>
-    `;
-  }).join("");
-}
-
-// Global actions for card buttons
-window.graspLearnedObject = async function(objId) {
-  const match = allLearnedObjects.find(o => o.id === objId);
-  if (!match) return;
-
-  const angles = match.servo_angles || [90, 90, 90, 90, 90];
-  showMessage(`Executing automatic grasp for '${match.name}' (${match.grip_type})...`);
-
-  // Sync sliders
-  for (let i = 0; i < 5; i++) {
-    const sl = el(`slider${i}`);
-    if (sl) {
-      sl.value = angles[i];
-      const valEl = el(`angleValue${i}`) || el(`angle${i}`);
-      if (valEl) valEl.textContent = `${angles[i]}°`;
-    }
-  }
-
-  // Sync 3D Hand
-  if (window.RoboticHand3D) {
-    window.RoboticHand3D.setAllFingerAngles(angles);
-  }
-
-  // Send backend command
-  try {
-    const res = await fetch(`/api/objects/${objId}/grasp`, { method: "POST" });
-    const data = await res.json();
-    if (data.success) {
-      showMessage(data.message || `Grasp completed for ${match.name}`);
+  // Set default object name if given or if YOLO is currently tracking an object
+  const nameInput = el("drawerObjectName");
+  if (nameInput) {
+    if (defaultName) {
+      nameInput.value = defaultName;
+    } else if (activeSelectedObject) {
+      nameInput.value = activeSelectedObject.name;
     } else {
-      showMessage(data.error || "Grasp failed");
-    }
-  } catch (e) {
-    showMessage(e.message);
-  }
-};
-
-window.previewLearnedObject = function(objId) {
-  const match = allLearnedObjects.find(o => o.id === objId);
-  if (!match) return;
-
-  const angles = match.servo_angles || [90, 90, 90, 90, 90];
-  showMessage(`Previewing 3D posture for '${match.name}' (${angles.join("°, ")}°)...`);
-
-  // Sync sliders
-  for (let i = 0; i < 5; i++) {
-    const sl = el(`slider${i}`);
-    if (sl) {
-      sl.value = angles[i];
-      const valEl = el(`angleValue${i}`) || el(`angle${i}`);
-      if (valEl) valEl.textContent = `${angles[i]}°`;
+      const target = getFocusedDetection();
+      if (target && (target.label || target.raw_label)) {
+        nameInput.value = target.label || target.raw_label;
+      }
     }
   }
 
-  if (window.RoboticHand3D) {
-    window.RoboticHand3D.setAllFingerAngles(angles);
+  // Ensure webcam is active for smooth capturing
+  if (!cameraStream && !detectionActive) {
+    showMessage("Starting camera for multi-angle capture...");
+    toggleCamera().catch(() => {});
   }
-};
+}
 
-window.deleteLearnedObject = async function(objId) {
-  const match = allLearnedObjects.find(o => o.id === objId);
-  if (!match) return;
+function closeSideDrawer() {
+  const drawer = el("sideDrawer");
+  const backdrop = el("sideDrawerBackdrop");
+  if (drawer) drawer.classList.remove("open");
+  if (backdrop) backdrop.style.display = "none";
+}
 
-  if (!window.confirm(`Delete learned object '${match.name}' from SQLite database?`)) return;
+function goToDrawerStep(step) {
+  const step1 = el("drawerStep1View");
+  const step2 = el("drawerStep2View");
+  const chip1 = el("chipStep1");
+  const chip2 = el("chipStep2");
+  const chip3 = el("chipStep3");
 
-  try {
-    const res = await fetch(`/api/objects/${objId}`, { method: "DELETE" });
-    const data = await res.json();
-    if (data.success) {
-      showMessage(`Deleted '${match.name}' successfully.`);
-      loadLearnedObjects();
-    }
-  } catch (e) {
-    showMessage("Failed to delete object: " + e.message);
+  if (step === 1) {
+    if (step1) step1.style.display = "block";
+    if (step2) step2.style.display = "none";
+    chip1?.classList.add("active");
+    chip2?.classList.remove("active");
+    chip3?.classList.remove("active");
+  } else if (step === 2) {
+    if (step1) step1.style.display = "none";
+    if (step2) step2.style.display = "block";
+    chip1?.classList.remove("active");
+    chip2?.classList.add("active");
+    chip3?.classList.remove("active");
+  } else if (step === 3) {
+    chip1?.classList.remove("active");
+    chip2?.classList.remove("active");
+    chip3?.classList.add("active");
   }
-};
+}
 
-// Search filter
-el("objectSearchInput")?.addEventListener("input", (e) => {
-  const q = (e.target.value || "").toLowerCase().trim();
-  if (!q) {
-    renderObjectsGrid(allLearnedObjects);
+// Hook drawer triggers
+el("btnOpenDrawerTop")?.addEventListener("click", () => openSideDrawer(1));
+el("btnOpenDrawerBottom")?.addEventListener("click", () => openSideDrawer(1));
+el("closeSideDrawerBtn")?.addEventListener("click", closeSideDrawer);
+el("sideDrawerBackdrop")?.addEventListener("click", closeSideDrawer);
+el("btnBackToAngles")?.addEventListener("click", () => goToDrawerStep(1));
+
+// Stop camera button in webcam card
+el("btnCamStopTop")?.addEventListener("click", async () => {
+  if (detectionActive || cameraStream) {
+    await toggleCamera();
+  }
+});
+
+// --- Step 2 & 3: Multi-Angle Capture (Front, Back, Left, Right, Top, Bottom) ---
+function captureCurrentFrameDataUrl() {
+  const video = el("cameraVideo");
+  const canvas = document.createElement("canvas");
+  const w = (video && video.videoWidth) ? video.videoWidth : 640;
+  const h = (video && video.videoHeight) ? video.videoHeight : 480;
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+
+  if (video && cameraStream && video.readyState >= 2) {
+    ctx.drawImage(video, 0, 0, w, h);
   } else {
-    const filtered = allLearnedObjects.filter(o =>
-      o.name.toLowerCase().includes(q) ||
-      (o.custom_name && o.custom_name.toLowerCase().includes(q)) ||
-      (o.grip_type && o.grip_type.toLowerCase().includes(q)) ||
-      (o.category && o.category.toLowerCase().includes(q))
-    );
-    renderObjectsGrid(filtered);
+    // Generate clean illustrated canvas snapshot
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "bold 24px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("OBJECT CAMERA ANGLE", w / 2, h / 2 - 10);
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "16px system-ui";
+    ctx.fillText("NAVONMESH 26 VISION", w / 2, h / 2 + 25);
   }
-});
-
-// Modal Open/Close
-function openLearnModal(prefillName = "") {
-  const modal = el("learningModal");
-  if (!modal) return;
-  modal.style.display = "flex";
-
-  if (prefillName) {
-    const nameInput = el("learnObjectNameInput");
-    if (nameInput) nameInput.value = prefillName;
-  }
-
-  // Reset slots
-  capturedAngles = { Front: null, Left: null, Right: null, Top: null };
-  ["Front", "Left", "Right", "Top"].forEach(slot => {
-    const slotEl = el(`slot${slot}`);
-    if (slotEl) slotEl.classList.remove("has-image");
-    const previewEl = el(`preview${slot}`);
-    if (previewEl) {
-      const icon = slot === "Front" ? "📷" : slot === "Left" ? "↻ 90°" : slot === "Right" ? "↺ 90°" : "⤹ Rim";
-      const lbl = slot === "Front" ? "Facing Camera" : slot === "Left" ? "Rotate 90° Right" : slot === "Right" ? "Show Right Side" : "Tilt Top Rim / Cap";
-      previewEl.innerHTML = `<span class="placeholder-icon">${icon}</span><small>${lbl}</small>`;
-    }
-    const delBtn = slotEl?.querySelector(".btn-slot-del");
-    if (delBtn) delBtn.style.display = "none";
-  });
-
-  const resCard = el("analysisResultCard");
-  if (resCard) resCard.style.display = "none";
-  const saveBtn = el("saveLearnedObjectBtn");
-  if (saveBtn) saveBtn.disabled = true;
+  return canvas.toDataURL("image/jpeg", 0.85);
 }
 
-function closeLearnModal() {
-  const modal = el("learningModal");
-  if (modal) modal.style.display = "none";
-}
-
-el("openLearnModalBtn")?.addEventListener("click", () => openLearnModal());
-el("closeLearnModalBtn")?.addEventListener("click", closeLearnModal);
-el("cancelLearnBtn")?.addEventListener("click", closeLearnModal);
-
-// Quick learn button from AI detection card
-el("quickLearnBtn")?.addEventListener("click", () => {
-  const target = getFocusedDetection();
-  const name = target ? (target.label || target.raw_label || "") : "";
-  openLearnModal(name);
-
-  // If camera is running, automatically capture current frame as Front View
-  setTimeout(() => {
-    captureSlotImage("Front", "Front View");
-  }, 200);
-});
-
-// Capture image for a slot
-function captureSlotImage(slot, angleLabel) {
-  let frameB64 = null;
-
-  if (cameraMode === "browser") {
-    const video = el("cameraVideo");
-    if (cameraStream && video.readyState >= 2) {
-      const c = document.createElement("canvas");
-      c.width = video.videoWidth || 640;
-      c.height = video.videoHeight || 480;
-      const ctx = c.getContext("2d");
-      ctx.drawImage(video, 0, 0);
-      frameB64 = c.toDataURL("image/jpeg", 0.88);
-    }
-  }
-
-  if (!frameB64) {
-    // Try to grab from detectionCanvas
-    const detCanvas = el("detectionCanvas");
-    if (detCanvas && detCanvas.width > 0) {
-      frameB64 = detCanvas.toDataURL("image/jpeg", 0.88);
-    }
-  }
-
-  if (!frameB64) {
-    showMessage("Please start camera before capturing angle.");
-    return;
-  }
-
-  capturedAngles[slot] = {
-    angle_label: angleLabel,
-    image_b64: frameB64
+function captureSlot(slotName) {
+  const dataUrl = captureCurrentFrameDataUrl();
+  capturedAngles[slotName] = {
+    slot_name: slotName,
+    image_data: dataUrl
   };
 
-  const slotEl = el(`slot${slot}`);
-  if (slotEl) slotEl.classList.add("has-image");
-  const previewEl = el(`preview${slot}`);
-  if (previewEl) {
-    previewEl.innerHTML = `<img src="${frameB64}" alt="${angleLabel}" />`;
+  // Update preview slot
+  const preview = el(`preview${slotName}`);
+  if (preview) {
+    preview.innerHTML = `<img src="${dataUrl}" class="angle-snap-thumb" alt="${slotName}" />`;
   }
-  const delBtn = slotEl?.querySelector(".btn-slot-del");
-  if (delBtn) delBtn.style.display = "flex";
 
-  // Enable analysis if front is captured
-  const saveBtn = el("saveLearnedObjectBtn");
-  if (saveBtn) saveBtn.disabled = false;
+  // Update badge checkmark
+  const badge = el(`badge${slotName}`);
+  if (badge) {
+    badge.classList.add("captured");
+    badge.style.display = "flex";
+  }
+
+  const card = el(`slotCard${slotName}`);
+  if (card) card.classList.add("has-image");
+
+  updateAnglesProgress();
+  showMessage(`Captured ${slotName} view.`);
 }
 
-// Hook up slot buttons
-document.querySelectorAll(".btn-slot-cap").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const slot = btn.getAttribute("data-slot");
-    const angle = btn.getAttribute("data-angle");
-    captureSlotImage(slot, angle);
-  });
-});
-
-document.querySelectorAll(".btn-slot-del").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const slot = btn.getAttribute("data-slot");
-    capturedAngles[slot] = null;
-    const slotEl = el(`slot${slot}`);
-    if (slotEl) slotEl.classList.remove("has-image");
-    const previewEl = el(`preview${slot}`);
-    if (previewEl) {
-      previewEl.innerHTML = `<span class="placeholder-icon">📷</span><small>Recapture</small>`;
+function updateAnglesProgress() {
+  const count = ANGLE_SLOTS.filter(s => Boolean(capturedAngles[s])).length;
+  const pill = el("anglesProgressPill");
+  const text = el("anglesProgressText");
+  if (text) {
+    text.textContent = `${count}/6 Angles Captured`;
+  }
+  if (pill) {
+    if (count === 6) {
+      pill.classList.add("complete");
+    } else {
+      pill.classList.remove("complete");
     }
-    btn.style.display = "none";
+  }
+}
+
+// Bind capture buttons on all 6 cards
+ANGLE_SLOTS.forEach(slot => {
+  const card = el(`slotCard${slot}`);
+  const snapBtn = card?.querySelector(".btn-slot-snap");
+  snapBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    captureSlot(slot);
+  });
+  card?.addEventListener("click", () => {
+    captureSlot(slot);
   });
 });
 
-// Run AI Grip Analysis
-el("runAiAnalysisBtn")?.addEventListener("click", async () => {
-  const front = capturedAngles.Front || capturedAngles.Left || capturedAngles.Right || capturedAngles.Top;
-  let imgPayload = front ? front.image_b64 : null;
+// Quick 1-click snap to all 6 angles
+el("snapQuickAllBtn")?.addEventListener("click", () => {
+  const dataUrl = captureCurrentFrameDataUrl();
+  ANGLE_SLOTS.forEach(slot => {
+    capturedAngles[slot] = {
+      slot_name: slot,
+      image_data: dataUrl
+    };
+    const preview = el(`preview${slot}`);
+    if (preview) {
+      preview.innerHTML = `<img src="${dataUrl}" class="angle-snap-thumb" alt="${slot}" />`;
+    }
+    const badge = el(`badge${slot}`);
+    if (badge) {
+      badge.classList.add("captured");
+      badge.style.display = "flex";
+    }
+    const card = el(`slotCard${slot}`);
+    if (card) card.classList.add("has-image");
+  });
+  updateAnglesProgress();
+  showMessage("Snapped current view to all 6 angles!");
+});
 
-  if (!imgPayload) {
-    // Auto-capture front
-    captureSlotImage("Front", "Front View");
-    imgPayload = capturedAngles.Front?.image_b64;
+// --- Step 4: Analyze Grip (AI) & Calibrate Sliders ---
+el("btnAnalyzeGrip")?.addEventListener("click", async () => {
+  const name = (el("drawerObjectName")?.value || "Object").trim();
+  const category = el("drawerObjectCategory")?.value || "General Object";
+
+  // Check if at least one image captured; if not, capture Front now
+  if (!capturedAngles.Front) {
+    captureSlot("Front");
   }
 
-  if (!imgPayload) {
-    showMessage("Please capture at least one viewing angle before running analysis.");
-    return;
-  }
+  const images = ANGLE_SLOTS.filter(s => Boolean(capturedAngles[s])).map(s => capturedAngles[s]);
 
-  const nameVal = el("learnObjectNameInput")?.value || "";
-  showMessage("Running geometric computer vision analysis on captured angles...");
+  showMessage(`Analyzing 3D shape and grip angles for '${name}'...`);
+  const analyzeBtn = el("btnAnalyzeGrip");
+  if (analyzeBtn) analyzeBtn.disabled = true;
 
   try {
     const res = await fetch("/api/objects/analyze_grip", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        image: imgPayload,
-        label: nameVal
+        name: name,
+        category: category,
+        images: images
       })
     });
     const data = await res.json();
-
-    if (data.success && data.analysis) {
-      const an = data.analysis;
-      el("resShape").textContent = an.shape || "Cylindrical";
-      el("resSize").textContent = an.size || "Medium";
-      el("resOrient").textContent = an.orientation || "Vertical";
-      el("resGripType").textContent = an.grip_type || "Cylindrical Power Grip";
-
-      const angles = an.recommended_angles || [120, 110, 115, 115, 105];
-      for (let i = 0; i < 5; i++) {
-        const sl = el(`learnSlider${i}`);
-        if (sl) {
-          sl.value = angles[i];
-          const valEl = el(`valLearn${i}`);
-          if (valEl) valEl.textContent = `${angles[i]}°`;
-        }
-      }
-
-      el("analysisResultCard").style.display = "flex";
-      el("previewGrip3dBtn").style.display = "inline-flex";
-      el("saveLearnedObjectBtn").disabled = false;
-      showMessage(`AI Analysis Complete: Recommended ${an.grip_type}`);
-
-      // Live sync to 3D hand
-      if (window.RoboticHand3D) {
-        window.RoboticHand3D.setAllFingerAngles(angles);
-      }
-    } else {
-      showMessage(data.error || "Analysis failed");
+    if (!data.success) {
+      throw new Error(data.error || "Grip analysis failed");
     }
+
+    const a = data.analysis;
+    const angles = a.recommended_angles || a.angles || [110, 125, 130, 125, 115];
+    const shape = a.shape || a.estimated_shape || "Spherical / Cylindrical";
+    const gripType = a.grip_type || "Power Grip";
+
+    // Transition to Step 2
+    goToDrawerStep(2);
+
+    // Populate summary
+    if (el("resSummaryName")) el("resSummaryName").textContent = name;
+    if (el("resSummaryShape")) el("resSummaryShape").textContent = shape;
+    if (el("resSummaryGrip")) el("resSummaryGrip").textContent = gripType;
+
+    // Set 5 calibration sliders
+    for (let i = 0; i < 5; i++) {
+      const sl = el(`drawerSlider${i}`);
+      const val = el(`valDrawerSlider${i}`);
+      if (sl) sl.value = angles[i];
+      if (val) val.textContent = `${angles[i]}°`;
+    }
+
+    // Immediately animate 3D Robotic Hand
+    if (window.RoboticHand3D) {
+      window.RoboticHand3D.setAllFingerAngles(angles);
+    }
+
+    showMessage(`Grip Analyzed: ${gripType} [${angles.join("°, ")}°]. Calibrate sliders if needed.`);
   } catch (err) {
-    showMessage("Analysis error: " + err.message);
+    showMessage("Analysis warning: " + err.message + ". Loaded default calibrated angles.");
+    goToDrawerStep(2);
+    if (el("resSummaryName")) el("resSummaryName").textContent = name;
+    if (el("resSummaryGrip")) el("resSummaryGrip").textContent = "Power Grip";
+    const fallback = [110, 125, 130, 125, 115];
+    for (let i = 0; i < 5; i++) {
+      const sl = el(`drawerSlider${i}`);
+      const val = el(`valDrawerSlider${i}`);
+      if (sl) sl.value = fallback[i];
+      if (val) val.textContent = `${fallback[i]}°`;
+    }
+    if (window.RoboticHand3D) {
+      window.RoboticHand3D.setAllFingerAngles(fallback);
+    }
+  } finally {
+    if (analyzeBtn) analyzeBtn.disabled = false;
   }
 });
 
-// Mini sliders in modal live preview
+// Live calibration slider listeners inside Drawer
 for (let i = 0; i < 5; i++) {
-  const sl = el(`learnSlider${i}`);
-  if (sl) {
-    sl.addEventListener("input", (e) => {
-      const val = Number(e.target.value);
-      const valEl = el(`valLearn${i}`);
-      if (valEl) valEl.textContent = `${val}°`;
-      if (window.RoboticHand3D) {
-        window.RoboticHand3D.setFingerAngle(i, val);
-      }
-    });
-  }
+  const sl = el(`drawerSlider${i}`);
+  const val = el(`valDrawerSlider${i}`);
+  sl?.addEventListener("input", () => {
+    const angle = Number(sl.value);
+    if (val) val.textContent = `${angle}°`;
+    // Animate individual finger in 3D in real time
+    if (window.RoboticHand3D) {
+      window.RoboticHand3D.setFingerAngle(i, angle);
+    }
+  });
 }
 
-// Preview in 3D button
-el("previewGrip3dBtn")?.addEventListener("click", () => {
+// Preview 3D Grip Posture button in Drawer
+el("btnPreview3dDrawer")?.addEventListener("click", () => {
   const angles = [
-    Number(el("learnSlider0")?.value || 90),
-    Number(el("learnSlider1")?.value || 90),
-    Number(el("learnSlider2")?.value || 90),
-    Number(el("learnSlider3")?.value || 90),
-    Number(el("learnSlider4")?.value || 90)
+    Number(el("drawerSlider0")?.value || 110),
+    Number(el("drawerSlider1")?.value || 125),
+    Number(el("drawerSlider2")?.value || 130),
+    Number(el("drawerSlider3")?.value || 125),
+    Number(el("drawerSlider4")?.value || 115)
   ];
   if (window.RoboticHand3D) {
     window.RoboticHand3D.setAllFingerAngles(angles);
   }
-  showMessage(`3D Grip Posture set: [${angles.join("°, ")}°]`);
+  showMessage(`Previewing 3D Posture: [${angles.join("°, ")}°]`);
 });
 
-// Save Learned Object to SQLite
-el("saveLearnedObjectBtn")?.addEventListener("click", async () => {
-  const name = (el("learnObjectNameInput")?.value || "").trim();
-  if (!name) {
-    window.alert("Please provide an Object Name.");
-    el("learnObjectNameInput")?.focus();
-    return;
-  }
-
-  const customName = (el("learnObjectCustomInput")?.value || name).trim();
-  const category = el("learnObjectCategory")?.value || "General Object";
-  const gripType = el("resGripType")?.textContent || "Cylindrical Power Grip";
-  const shape = el("resShape")?.textContent || "Cylindrical";
-  const size = el("resSize")?.textContent || "Medium";
-  const orient = el("resOrient")?.textContent || "Vertical";
+// --- Step 5: Save to Library ---
+el("btnSaveToLibrary")?.addEventListener("click", async () => {
+  const name = (el("drawerObjectName")?.value || "Object").trim();
+  const category = el("drawerObjectCategory")?.value || "General Object";
+  const shape = el("resSummaryShape")?.textContent || "Spherical / Cylindrical";
+  const gripType = el("resSummaryGrip")?.textContent || "Power Grip";
 
   const angles = [
-    Number(el("learnSlider0")?.value || 90),
-    Number(el("learnSlider1")?.value || 90),
-    Number(el("learnSlider2")?.value || 90),
-    Number(el("learnSlider3")?.value || 90),
-    Number(el("learnSlider4")?.value || 90)
+    Number(el("drawerSlider0")?.value || 110),
+    Number(el("drawerSlider1")?.value || 125),
+    Number(el("drawerSlider2")?.value || 130),
+    Number(el("drawerSlider3")?.value || 125),
+    Number(el("drawerSlider4")?.value || 115)
   ];
 
-  // Collect captured images
-  const images = [];
-  ["Front", "Left", "Right", "Top"].forEach(slot => {
-    if (capturedAngles[slot]) {
-      images.push(capturedAngles[slot]);
-    }
-  });
+  const images = ANGLE_SLOTS.filter(s => Boolean(capturedAngles[s])).map(s => capturedAngles[s]);
 
   const payload = {
     name: name,
-    custom_name: customName,
+    custom_name: name,
     category: category,
     grip_type: gripType,
     estimated_shape: shape,
-    estimated_size: size,
-    orientation: orient,
+    estimated_size: "Medium",
+    orientation: "Vertical",
     servo_angles: angles,
     thumb_angle: angles[0],
     index_angle: angles[1],
     middle_angle: angles[2],
     ring_angle: angles[3],
     little_angle: angles[4],
-    confidence: 95.0,
+    confidence: 96.0,
     images: images
   };
 
-  showMessage(`Saving '${name}' to SQLite database with ${images.length} angle captures...`);
+  showMessage(`Saving '${name}' to SQLite library...`);
+  const saveBtn = el("btnSaveToLibrary");
+  if (saveBtn) saveBtn.disabled = true;
 
   try {
     const res = await fetch("/api/objects", {
@@ -1784,18 +1695,234 @@ el("saveLearnedObjectBtn")?.addEventListener("click", async () => {
       body: JSON.stringify(payload)
     });
     const data = await res.json();
+    if (!data.success) throw new Error(data.error || "Save failed");
 
-    if (data.success) {
-      showMessage(`Object '${name}' successfully learned and saved to library!`);
-      closeLearnModal();
-      await loadLearnedObjects();
-    } else {
-      window.alert("Failed to save: " + (data.error || "Unknown error"));
-    }
+    showMessage(`Object '${name}' successfully saved!`);
+    goToDrawerStep(3);
+    setTimeout(() => {
+      closeSideDrawer();
+    }, 450);
+
+    // Refresh library and select newly saved object
+    await loadObjectsLibrary(name);
   } catch (err) {
     window.alert("Error saving object: " + err.message);
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
   }
 });
 
-// Load learned objects on page startup
-loadLearnedObjects();
+// --- Step 6: Load Library & Select Object ---
+async function loadObjectsLibrary(autoSelectName = null) {
+  try {
+    const res = await fetch("/api/objects");
+    const data = await res.json();
+    if (data.success && Array.isArray(data.objects)) {
+      savedObjectsList = data.objects;
+      renderLibraryCards(savedObjectsList);
+      populateObjectDropdown(savedObjectsList);
+
+      // Select target
+      if (autoSelectName) {
+        const found = savedObjectsList.find(o => o.name.toLowerCase() === autoSelectName.toLowerCase());
+        if (found) selectObjectProfile(found.id);
+        else if (savedObjectsList.length > 0) selectObjectProfile(savedObjectsList[0].id);
+      } else if (!activeSelectedObject && savedObjectsList.length > 0) {
+        selectObjectProfile(savedObjectsList[0].id);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load objects library:", err);
+  }
+}
+
+function populateObjectDropdown(objects) {
+  const sel = el("objectSelectorDropdown");
+  if (!sel) return;
+  sel.innerHTML = objects.map(o => {
+    return `<option value="${o.id}">${escapeHtml(o.name)} (${escapeHtml(o.grip_type || "Power Grip")})</option>`;
+  }).join("");
+
+  sel.onchange = () => {
+    const id = Number(sel.value);
+    selectObjectProfile(id);
+  };
+}
+
+function renderLibraryCards(objects) {
+  const container = el("libraryCardsContainer");
+  if (!container) return;
+
+  if (objects.length === 0) {
+    container.innerHTML = `<div class="loading-placeholder">No saved profiles yet. Click "+ New Object" to learn an object.</div>`;
+    return;
+  }
+
+  container.innerHTML = objects.map(obj => {
+    const isSelected = activeSelectedObject && activeSelectedObject.id === obj.id;
+    const thumb = obj.thumbnail_url || "/static/images/helping_hand.png";
+    return `
+      <div class="library-obj-card ${isSelected ? 'selected' : ''}" data-id="${obj.id}" onclick="selectObjectProfile(${obj.id})">
+        <span class="card-check-pill">✓</span>
+        <img src="${escapeHtml(thumb)}" class="obj-card-img" alt="${escapeHtml(obj.name)}" onerror="this.src='/static/images/helping_hand.png'" />
+        <strong class="obj-card-name">${escapeHtml(obj.name)}</strong>
+        <span class="obj-card-grip">${escapeHtml(obj.grip_type || "Power Grip")}</span>
+        <button type="button" class="btn-del-obj" onclick="event.stopPropagation(); deleteLearnedObject(${obj.id})" title="Delete">&times;</button>
+      </div>
+    `;
+  }).join("");
+}
+
+function selectObjectProfile(objId) {
+  const obj = savedObjectsList.find(o => o.id === objId);
+  if (!obj) return;
+
+  activeSelectedObject = obj;
+  currentGripAngles = obj.servo_angles || [110, 125, 130, 125, 115];
+
+  // Update card highlights
+  const cards = document.querySelectorAll(".library-obj-card");
+  cards.forEach(c => {
+    if (Number(c.getAttribute("data-id")) === objId) {
+      c.classList.add("selected");
+    } else {
+      c.classList.remove("selected");
+    }
+  });
+
+  // Sync dropdown
+  const sel = el("objectSelectorDropdown");
+  if (sel) sel.value = String(objId);
+
+  // Sync Target Info banner
+  const nameEl = el("dispObjectName");
+  if (nameEl) nameEl.textContent = obj.name;
+  const confEl = el("dispConfidence");
+  if (confEl) confEl.textContent = `${Math.round(obj.confidence || 96)}%`;
+  const gripEl = el("dispGripType");
+  if (gripEl) gripEl.textContent = obj.grip_type || "Power Grip";
+  const posEl = el("dispPositionText");
+  if (posEl) posEl.textContent = "Calibrated Target • Verified Posture";
+
+  const imgEl = el("targetThumbImg");
+  if (imgEl) imgEl.src = obj.thumbnail_url || "/static/images/helping_hand.png";
+
+  // Sync Calculated Grip (AI) 5 angle display
+  for (let i = 0; i < 5; i++) {
+    const valEl = el(`angleVal${i}`);
+    if (valEl) valEl.textContent = `${currentGripAngles[i]}°`;
+  }
+
+  // Sync main servo sliders and badges
+  for (let i = 0; i < 5; i++) {
+    const sl = el(`slider${i}`);
+    const badge = el(`angleValue${i}`) || el(`angle${i}`);
+    if (sl) {
+      sl.value = currentGripAngles[i];
+      updateSliderVisuals(sl);
+    }
+    if (badge) badge.textContent = `${currentGripAngles[i]}°`;
+  }
+
+  // Smoothly pose 3D Robotic Hand
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.setAllFingerAngles(currentGripAngles);
+  }
+
+  showMessage(`Selected '${obj.name}' (${obj.grip_type}). Angles: [${currentGripAngles.join("°, ")}°]. Ready to Grab.`);
+}
+
+window.selectObjectProfile = selectObjectProfile;
+
+window.deleteLearnedObject = async function(objId) {
+  const match = savedObjectsList.find(o => o.id === objId);
+  if (!match) return;
+
+  if (!window.confirm(`Delete object profile '${match.name}' from SQLite database?`)) return;
+
+  try {
+    const res = await fetch(`/api/objects/${objId}`, { method: "DELETE" });
+    const data = await res.json();
+    if (data.success) {
+      showMessage(`Deleted '${match.name}' successfully.`);
+      if (activeSelectedObject && activeSelectedObject.id === objId) {
+        activeSelectedObject = null;
+      }
+      loadObjectsLibrary();
+    }
+  } catch (err) {
+    showMessage("Failed to delete: " + err.message);
+  }
+};
+
+// --- Step 7: Grab Object & Release Execution ---
+async function executeGrip() {
+  if (stopped) {
+    showMessage("Emergency stop active. Resume before moving.");
+    return;
+  }
+
+  const name = activeSelectedObject ? activeSelectedObject.name : (el("dispObjectName")?.textContent || "Object");
+  const angles = currentGripAngles || [110, 125, 130, 125, 115];
+
+  showMessage(`Executing Grab on '${name}' [${angles.join("°, ")}°] via Arduino USB Serial...`);
+
+  // Animate 3D hand
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.setAllFingerAngles(angles);
+  }
+
+  // Update main sliders
+  for (let i = 0; i < 5; i++) {
+    const sl = el(`slider${i}`);
+    const badge = el(`angleValue${i}`) || el(`angle${i}`);
+    if (sl) {
+      sl.value = angles[i];
+      updateSliderVisuals(sl);
+    }
+    if (badge) badge.textContent = `${angles[i]}°`;
+  }
+
+  // Send hardware command to Arduino Mega COM3
+  await runCommand("GRAB_PROFILE", `Grip executed on '${name}'! Hand securely closed.`, {
+    angles: angles,
+    object_name: name
+  });
+  await updateStatus();
+}
+
+async function executeRelease() {
+  if (stopped) {
+    showMessage("Emergency stop active. Resume first.");
+    return;
+  }
+
+  showMessage("Releasing object: Opening all fingers to 0°...");
+
+  // Reset 3D hand
+  if (window.RoboticHand3D) {
+    window.RoboticHand3D.setAllFingerAngles([0, 0, 0, 0, 0]);
+  }
+
+  // Reset sliders
+  for (let i = 0; i < 5; i++) {
+    const sl = el(`slider${i}`);
+    const badge = el(`angleValue${i}`) || el(`angle${i}`);
+    if (sl) {
+      sl.value = 0;
+      updateSliderVisuals(sl);
+    }
+    if (badge) badge.textContent = "0°";
+  }
+
+  // Send hardware command
+  await runCommand("RELEASE", "Hand released. All 5 fingers opened to 0°.");
+  await updateStatus();
+}
+
+// Hook main Grab and Release buttons
+el("graspButton")?.addEventListener("click", executeGrip);
+el("releaseButton")?.addEventListener("click", executeRelease);
+
+// Load objects from SQLite on startup
+loadObjectsLibrary();

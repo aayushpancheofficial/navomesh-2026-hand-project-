@@ -1,12 +1,17 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f3f7ff"><title>HELPING HAND · Prosthetic Hand Control</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=29">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NAVONMESH 26 | AI Prosthetic Hand Control System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=40">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Manrope:wght@200..800&display=swap" rel="stylesheet">
 </head>
 <body>
 <main class="app-shell">
+  <!-- Topbar Header -->
   <header class="topbar card">
     <a class="brand" href="/">
       <span class="brand-bar"></span>
@@ -21,42 +26,36 @@
     <div class="header-status">
       <div class="status-card" id="cameraCard">
         <span class="status-card-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z"/><path d="m18 10 4-3v10l-4-3v-4Z"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z"/><path d="m18 10 4-3v10l-4-3v-4Z"/></svg>
         </span>
         <span class="status-card-divider"></span>
         <div class="status-card-body">
           <span class="status-card-title">Webcam</span>
-          <span class="status-card-state">
-            <span id="cameraHeader">Inactive</span>
-            <i id="cameraDot" class="status-dot"></i>
-          </span>
+          <span class="status-card-state"><span id="headerCameraText">Inactive</span><i class="status-dot" id="headerCameraDot"></i></span>
         </div>
       </div>
 
       <div class="status-card" id="aiCard">
         <span class="status-card-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L22 12"/><path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L22 17"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L22 12"/><path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L22 17"/></svg>
         </span>
         <span class="status-card-divider"></span>
         <div class="status-card-body">
           <span class="status-card-title">AI Detection</span>
-          <span class="status-card-state">
-            <span id="aiHeader">Ready</span>
-            <i id="aiDot" class="status-dot active"></i>
-          </span>
+          <span class="status-card-state"><span id="headerAiText">Standby</span><i class="status-dot" id="headerAiDot"></i></span>
         </div>
       </div>
 
       <div class="status-card" id="arduinoCard">
         <span class="status-card-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="19" r="2"/><circle cx="6" cy="5" r="1.5"/><rect x="16.5" y="3.5" width="3" height="3" rx="0.5"/><path d="M12 17V8"/><path d="m12 11 6-3.5"/><path d="m12 12-6-4"/><path d="m10.5 3.5 1.5-1.5 1.5 1.5"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><path d="M12 7v4"/><path d="M12 13v4"/><path d="M5 12h4"/><path d="M15 12h4"/></svg>
         </span>
         <span class="status-card-divider"></span>
         <div class="status-card-body">
-          <span id="arduinoPortLabel" class="status-card-title">Arduino (COM3)</span>
+          <span class="status-card-title" id="arduinoHeaderTitle">Arduino (COM3)</span>
           <span class="status-card-state">
-            <span id="portHeader">Offline</span>
-            <i id="arduinoDot" class="status-dot"></i>
+            <span id="connectionState">Offline</span>
+            <i class="status-dot red" id="connectionDot"></i>
           </span>
         </div>
       </div>
@@ -68,21 +67,23 @@
     </div>
   </header>
 
+  <!-- Top Grid: Left = Webcam, Right = AI Detection & Grip -->
   <section class="top-grid">
+    <!-- 1. WEBCAM CARD -->
     <article class="card camera-card">
       <div class="section-head">
         <div class="title-wrap">
           <span class="section-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z"/><path d="m18 10 4-3v10l-4-3v-4Z"/></svg>
           </span>
-          <div><h2>Live Camera</h2><p>Live view and object recognition</p></div>
+          <div><h2>Webcam</h2><p>Live view and object recognition</p></div>
         </div>
         <div class="camera-head-tools">
           <div class="source-pills" role="radiogroup" aria-label="Camera Source Selection">
             <button type="button" id="sourceBrowserBtn" class="source-pill active" title="Use Browser HTML5 Webcam">Browser</button>
-            <button type="button" id="sourceUsbBtn" class="source-pill" title="Use Hardware USB Camera on Windows 11 (/api/video_feed)">USB Cam</button>
+            <button type="button" id="sourceUsbBtn" class="source-pill" title="Use Hardware USB Camera (/api/video_feed)">USB Cam</button>
           </div>
-          <span id="cameraStatus" class="pill muted">Camera off</span>
+          <span id="cameraStatus" class="pill online" style="display:none;">Live View</span>
         </div>
       </div>
 
@@ -95,7 +96,7 @@
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 6H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Z"/><path d="m18 10 4-3v10l-4-3v-4Z"/></svg>
           </span>
           <strong>Camera is ready</strong>
-          <small>Start the camera to detect and track objects</small>
+          <small>Click Start Camera to begin object recognition</small>
         </div>
         <div class="live-label"><i></i><span id="cameraOverlayText">CAMERA OFF</span></div>
         <button id="fullscreenButton" class="fullscreen" title="Fullscreen">
@@ -103,137 +104,123 @@
         </button>
       </div>
 
-      <div class="camera-actions">
-        <button id="cameraToggle" class="button secondary">
+      <div class="camera-actions-exact">
+        <button id="cameraToggle" class="button primary btn-start-exact">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-          <span>Start Camera</span>
+          <span id="cameraToggleText">Start Camera</span>
         </button>
-        <button id="roiToggleBtn" class="button tertiary" title="Draw manual ROI bounding box on camera to lock and track">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 3"/><circle cx="12" cy="12" r="2"/></svg>
-          <span>Draw ROI</span>
+        <button id="cameraStopBtn" class="button secondary btn-stop-exact" title="Stop Camera Stream">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+          <span>Stop</span>
         </button>
-        <button id="clearRoiBtn" class="button tertiary" style="display:none;" title="Clear manual selection box">
-          <span>Clear ROI</span>
+        <button id="captureButton" class="button tertiary btn-cap-exact" title="Capture current frame">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M4 7h4l2-3h4l2 3h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg>
+          <span>Capture</span>
         </button>
-        <button id="captureButton" class="button primary" disabled>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M4 7h4l2-3h4l2 3h4a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"/></svg>
-          <span>Capture Snapshot</span>
-        </button>
+        <button id="roiToggleBtn" class="button tertiary" title="Draw ROI box" style="display:none;">Draw ROI</button>
+        <button id="clearRoiBtn" class="button tertiary" style="display:none;">Clear ROI</button>
       </div>
-      <p class="inline-hint">Click any object box or click 'Draw ROI' to manually lock a target.</p>
     </article>
 
-    <article class="card detect-card">
+    <!-- 2. AI DETECTION & GRIP CARD (MATCHING USER SCREENSHOT) -->
+    <article class="card detect-card exact-detect-card">
       <div class="section-head">
         <div class="title-wrap">
           <span class="section-icon target">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m2 12 8.58 3.91a2 2 0 0 0 1.66 0L22 12"/><path d="m2 17 8.58 3.91a2 2 0 0 0 1.66 0L22 17"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
           </span>
-          <div><h2>AI Detection</h2><p>Local YOLO object analysis & tracking</p></div>
+          <div><h2>AI Detection & Grip</h2><p>Recognized object & calculated grip posture</p></div>
         </div>
-        <div class="detect-head-pills">
-          <label class="safety-toggle-pill" title="Prevent prosthetic hand from targeting or grasping human beings">
-            <input type="checkbox" id="excludePersonToggle" checked>
-            <span>Safety: Exclude Person</span>
-          </label>
-          <span id="modelPill" class="pill muted">Loading model</span>
+        <button type="button" class="button primary btn-new-obj-pill" id="btnOpenDrawerTop">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          <span>+ New Object</span>
+        </button>
+      </div>
+
+      <!-- Object Selector Row -->
+      <div class="object-select-row">
+        <label for="objectSelectorDropdown"><strong>Select Object:</strong></label>
+        <select id="objectSelectorDropdown" class="object-select-styled">
+          <!-- Populated dynamically via JS from SQLite -->
+        </select>
+      </div>
+
+      <!-- Target Info Card (Image + Meta) -->
+      <div class="detection-info-banner">
+        <div class="target-avatar-box">
+          <img id="targetThumbImg" src="/static/images/helping_hand.png" alt="Target Preview" onerror="this.src='/static/images/helping_hand.png'" />
+        </div>
+        <div class="target-meta-list">
+          <div class="meta-line"><span>Detected Object :</span> <strong id="dispObjectName" class="blue-val">Apple</strong></div>
+          <div class="meta-line"><span>Confidence :</span> <strong id="dispConfidence" class="green-val">96%</strong></div>
+          <div class="meta-line"><span>Grip Type :</span> <strong id="dispGripType" class="blue-val">Power Grip</strong></div>
+          <div class="meta-line"><span>Position :</span> <strong id="dispPositionText">Center • Middle (X:50%, Y:50%)</strong></div>
         </div>
       </div>
 
-      <div class="detection-summary">
-        <div id="objectThumb" class="object-thumb">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3m8 0h3a1 1 0 0 1 1 1v3m0 8v3a1 1 0 0 1-1 1h-3m-8 0H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/></svg>
+      <!-- Calculated Grip (AI) Box -->
+      <div class="calculated-grip-card">
+        <div class="calc-grip-head">
+          <span class="calc-icon">⚙</span>
+          <strong>Calculated Grip (AI)</strong>
         </div>
-        <div class="detection-fields">
-          <div><span>Locked Target</span><strong id="objectName">Waiting for camera</strong></div>
-          <div><span>Confidence</span><strong class="confidence" id="objectConfidence">—</strong></div>
-          <div><span>Position</span><strong id="objectPosition">—</strong></div>
+        <div class="angles-table-rows">
+          <div class="angle-line"><span>Thumb</span> <b>: <span id="angleVal0">110°</span></b></div>
+          <div class="angle-line"><span>Index</span> <b>: <span id="angleVal1">125°</span></b></div>
+          <div class="angle-line"><span>Middle</span> <b>: <span id="angleVal2">130°</span></b></div>
+          <div class="angle-line"><span>Ring</span> <b>: <span id="angleVal3">125°</span></b></div>
+          <div class="angle-line"><span>Little</span> <b>: <span id="angleVal4">115°</span></b></div>
         </div>
       </div>
 
-      <div class="object-picker-head"><strong>Visible objects <span id="detectionCount">0</span></strong><small>Click a box or list item to lock target</small></div>
-      <div id="objectChoices" class="object-choices"><div class="choices-empty">Start the camera to find objects.</div></div>
-      <div class="message-box" id="systemMessage">Connecting to the hand controller…</div>
+      <!-- Hidden standard elements needed for backwards compatibility -->
+      <div id="objectName" style="display:none;">Apple</div>
+      <div id="objectConfidence" style="display:none;">96%</div>
+      <div id="objectPosition" style="display:none;">Center</div>
+      <div id="objectChoices" style="display:none;"></div>
+      <div id="detectionCount" style="display:none;">1</div>
+      <input type="checkbox" id="excludePersonToggle" checked style="display:none;">
+      <span id="modelPill" style="display:none;">Ready</span>
 
-      <div class="button-row-actions">
-        <button id="graspButton" type="button" class="button grab" title="Calculate position and grasp locked target with calibrated angles">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11V7a2 2 0 0 1 4 0v4"/><path d="M11 9V5a2 2 0 0 1 4 0v6"/><path d="M15 10V7a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-3a2 2 0 0 1 4 0v4"/></svg>
+      <div class="message-box" id="systemMessage">Connected to Arduino (COM3). Ready to grasp.</div>
+
+      <!-- Grab & Release Buttons (Exact Shape as User Sketch) -->
+      <div class="grab-release-actions-row">
+        <button id="graspButton" type="button" class="button grab-big" title="Move Arduino 5 servos to saved angles">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M7 11V7a2 2 0 0 1 4 0v4"/><path d="M11 9V5a2 2 0 0 1 4 0v6"/><path d="M15 10V7a2 2 0 0 1 4 0v6a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-3a2 2 0 0 1 4 0v4"/></svg>
           <span>Grab Object</span>
         </button>
-        <button id="releaseButton" type="button" class="button release" title="Open hand and release holding torque">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/><path d="M12 9v12"/></svg>
+        <button id="releaseButton" type="button" class="button release-big" title="Open all 5 fingers to 0°">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 15l-6-6-6 6"/><path d="M12 9v12"/></svg>
           <span>Release</span>
         </button>
-        <button id="quickLearnBtn" type="button" class="button secondary" title="Learn this object with multi-angle capture & grip profile">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
-          <span>Learn Object</span>
-        </button>
       </div>
-
-      <div class="vision-extra-row">
-        <button id="openaiVisionBtn" type="button" class="button tertiary openai-btn" title="Detailed grasp, material and weight estimation via OpenAI Vision API">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
-          <span>OpenAI Vision Analysis (Optional)</span>
-        </button>
-      </div>
-
-      <div id="openaiInsightCard" class="openai-insight-card" style="display:none;">
-        <div class="openai-insight-head">
-          <strong>OpenAI Vision Grasp Assessment</strong>
-          <button id="closeOpenAiInsight" type="button" class="close-card-btn">&times;</button>
-        </div>
-        <div id="openaiInsightContent" class="openai-insight-content">
-          Loading AI analysis…
-        </div>
-        <div id="openaiApplyAnglesRow" style="display:none; margin-top:8px;">
-          <button id="applyAiAnglesBtn" type="button" class="button primary">Apply Recommended Servo Angles</button>
-        </div>
-      </div>
-
       <button id="stopButton" class="button stop" style="display:none;" disabled>Emergency Stop</button>
-      <small class="hint">Confirm the hand is aligned before grabbing. Keep fingers clear while testing.</small>
     </article>
   </section>
 
-  
-  <!-- ==========================================
-       SECTION: OBJECT LEARNING & GRIP LIBRARY
-       ========================================== -->
-  <section class="card learning-card" id="learningSection">
+  <!-- 3. OBJECT LIBRARY (SAVED PROFILES) -->
+  <section class="card library-saved-card" id="librarySection">
     <div class="section-head">
       <div class="title-wrap">
-        <span class="section-icon learning-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v2a4 4 0 0 0 8 0V6a4 4 0 0 0-4-4Z"/><path d="M18 9v3a6 6 0 0 1-12 0V9"/><path d="M12 18v4"/><path d="M8 22h8"/></svg>
+        <span class="section-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 2 10 5-10 5-10-5Z"/><path d="m2 12 10 5 10-5"/><path d="m2 17 10 5 10-5"/></svg>
         </span>
-        <div>
-          <h2>Object Learning & Grip Library</h2>
-          <p>Multi-angle visual capture, AI geometric analysis & automatic 5-finger grip generation</p>
-        </div>
+        <div><h2>Object Library <span class="sub-paren">(Saved Profiles)</span></h2><p>Click any object to select and load its grip profile into the controller</p></div>
       </div>
-      <div class="learning-top-actions">
-        <div class="search-wrap">
-          <input type="text" id="objectSearchInput" class="search-input" placeholder="Search saved objects..." />
-        </div>
-        <button id="openLearnModalBtn" type="button" class="button primary">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
-          <span>+ Learn New Object</span>
-        </button>
-      </div>
+      <button type="button" class="button primary" id="btnOpenDrawerBottom">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+        <span>+ New Object</span>
+      </button>
     </div>
 
-    <!-- Active Learning Status Banner -->
-    <div class="learning-info-banner">
-      <div class="info-pill"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg> <span>SQLite Grip Database Connected</span></div>
-      <div class="info-pill" id="libraryCountBadge"><span>5 Saved Objects</span></div>
-      <div class="info-text">Select any saved object below to preview its 3D grip posture or execute automatic grasping.</div>
-    </div>
-
-    <!-- Objects Grid -->
-    <div class="objects-grid" id="objectsGrid">
-      <div class="loading-placeholder">Loading saved objects from SQLite...</div>
+    <!-- Horizontal Cards List (Apple, Bottle, Cup, Mobile...) -->
+    <div class="library-horizontal-row" id="libraryCardsContainer">
+      <div class="loading-placeholder">Loading saved profiles from SQLite...</div>
     </div>
   </section>
 
+  <!-- 4. SERVO MOTOR CONTROL & 3D VISUALIZATION -->
   <section class="card servo-card">
     <div class="section-head">
       <div class="title-wrap">
@@ -248,88 +235,122 @@
       <span class="servo-range-badge">Range : 0° – 180°</span>
     </div>
 
-    <div class="servo-layout">
-      <div id="servoControls" class="servo-list">
-        {% for name in ['Thumb', 'Index', 'Middle', 'Ring', 'Little'] %}
-        {% set i = loop.index0 %}
-        {% set num = ['01', '02', '03', '04', '05'][i] %}
-        <div class="servo-row">
-          <span class="finger-num">{{ num }}</span>
-          <label for="slider{{ i }}" class="finger-label">{{ name }}</label>
-          <div class="slider-wrapper">
-            <input type="range" min="0" max="180" value="90" id="slider{{ i }}" aria-label="{{ name }} servo angle" class="custom-slider">
+    <div class="servo-split-layout">
+      <div class="servo-controls-col">
+        <div class="servo-rows-container">
+          <!-- Row 0: Thumb -->
+          <div class="servo-control-row" id="servoRow0">
+            <span class="finger-dot"></span>
+            <span class="finger-name">Thumb</span>
+            <div class="slider-wrapper">
+              <input type="range" min="0" max="180" value="0" id="slider0" aria-label="Thumb Angle">
+            </div>
+            <span class="angle-badge" id="angleValue0">0°</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="enable0" checked aria-label="Enable Thumb">
+              <span class="slider round"></span>
+            </label>
           </div>
-          <output id="angle{{ i }}" class="angle-badge">90°</output>
-          <label class="toggle-switch" title="Enable/Disable {{ name }} servo">
-            <input type="checkbox" id="enable{{ i }}" checked aria-label="Enable {{ name }} servo">
-            <span class="toggle-slider"></span>
-          </label>
+
+          <!-- Row 1: Index -->
+          <div class="servo-control-row" id="servoRow1">
+            <span class="finger-dot"></span>
+            <span class="finger-name">Index</span>
+            <div class="slider-wrapper">
+              <input type="range" min="0" max="180" value="0" id="slider1" aria-label="Index Angle">
+            </div>
+            <span class="angle-badge" id="angleValue1">0°</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="enable1" checked aria-label="Enable Index">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <!-- Row 2: Middle -->
+          <div class="servo-control-row" id="servoRow2">
+            <span class="finger-dot"></span>
+            <span class="finger-name">Middle</span>
+            <div class="slider-wrapper">
+              <input type="range" min="0" max="180" value="0" id="slider2" aria-label="Middle Angle">
+            </div>
+            <span class="angle-badge" id="angleValue2">0°</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="enable2" checked aria-label="Enable Middle">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <!-- Row 3: Ring -->
+          <div class="servo-control-row" id="servoRow3">
+            <span class="finger-dot"></span>
+            <span class="finger-name">Ring</span>
+            <div class="slider-wrapper">
+              <input type="range" min="0" max="180" value="0" id="slider3" aria-label="Ring Angle">
+            </div>
+            <span class="angle-badge" id="angleValue3">0°</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="enable3" checked aria-label="Enable Ring">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <!-- Row 4: Little -->
+          <div class="servo-control-row" id="servoRow4">
+            <span class="finger-dot"></span>
+            <span class="finger-name">Little</span>
+            <div class="slider-wrapper">
+              <input type="range" min="0" max="180" value="0" id="slider4" aria-label="Little Angle">
+            </div>
+            <span class="angle-badge" id="angleValue4">0°</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="enable4" checked aria-label="Enable Little">
+              <span class="slider round"></span>
+            </label>
+          </div>
         </div>
-        {% endfor %}
       </div>
 
-      <aside class="hand-gauge-card">
-        <div class="gauge-angle-display">
-          <span id="gaugeAngleText">180°</span>
+      <!-- Right: Interactive 3D Robotic Hand -->
+      <div class="hand-gauge-card">
+        <div class="gauge-head">
+          <span class="gauge-degree-display" id="mainGaugeDegree">0°</span>
         </div>
-        <div class="gauge-visual-wrap">
-          <svg class="gauge-arc-svg" viewBox="0 0 200 120" width="100%">
-            <defs>
-              <linearGradient id="arcGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#38bdf8" />
-                <stop offset="50%" stop-color="#0066ff" />
-                <stop offset="100%" stop-color="#2563eb" />
-              </linearGradient>
-            </defs>
-            <path d="M 22 110 A 78 78 0 0 1 178 110" fill="none" stroke="#e2e8f0" stroke-width="5" stroke-linecap="round"/>
-            <path id="gaugeArcFill" d="M 22 110 A 78 78 0 0 1 178 110" fill="none" stroke="url(#arcGradient)" stroke-width="5" stroke-linecap="round" stroke-dasharray="3, 5"/>
-            <text x="14" y="117" fill="#64748b" font-size="11" font-weight="700">0°</text>
-            <text x="166" y="117" fill="#64748b" font-size="11" font-weight="700">180°</text>
-          </svg>
-
-          <!-- Interactive 3D Robotic Hand Viewport (Three.js WebGL) -->
-          <div id="hand3dContainer" class="hand-3d-wrap" title="Click & Drag to rotate 3D Hand (Double-click to reset view)">
-            <!-- Three.js Canvas injected here -->
-          </div>
-          <div class="hand-3d-controls-hint">
-            <span class="hint-badge">⌖ Drag to Rotate 3D Hand</span>
-            <button id="resetView3dBtn" type="button" class="view-reset-pill" title="Reset camera view">↺ Reset View</button>
-          </div>
+        <div class="hand-3d-wrapper" id="hand3dContainer">
+          <canvas id="hand3dCanvas"></canvas>
         </div>
-      </aside>
+        <div class="hand-3d-controls-overlay">
+          <button type="button" id="resetView3dBtn" class="btn-3d-pill" title="Reset View Angle">↺ Reset View</button>
+          <span class="hint-3d">Drag to Orbit • Scroll to Zoom</span>
+        </div>
+      </div>
     </div>
 
+    <!-- Movement Controls -->
     <div class="movement-controls">
-      <button id="closeButton" class="button secondary close-hand-btn" disabled>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M11 11V5a2 2 0 0 1 4 0v6"/>
-          <path d="M15 11V6a2 2 0 0 1 4 0v6"/>
-          <path d="M7 11.5V7a2 2 0 0 1 4 0v4.5"/>
-          <path d="M19 12v3a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-3a2 2 0 0 1 4 0v1"/>
-        </svg>
-        <span>Close Hand</span>
-      </button>
-
-      <button id="openButton" class="button primary open-hand-btn" disabled>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v0"/>
-          <path d="M14 10V4a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v2"/>
-          <path d="M10 10.5V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v8"/>
-          <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>
-        </svg>
+      <button id="openButton" class="button secondary" title="Open all 5 fingers to 30°">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/><path d="M12 9v12"/></svg>
         <span>Open Hand</span>
       </button>
-
-      <button id="resetButton" class="button secondary reset-hand-btn" disabled>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-          <path d="M3 3v5h5"/>
-        </svg>
+      <button id="closeButton" class="button secondary" title="Close all 5 fingers to 150°">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/><path d="M12 3v12"/></svg>
+        <span>Close Hand</span>
+      </button>
+      <button id="resetButton" class="button secondary" title="Reset all fingers to 0°">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
         <span>Reset</span>
+      </button>
+      <button id="movementStop" class="button stop" title="Immediate hardware halt">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+        <span>Stop</span>
+      </button>
+      <button id="movementRelease" class="button release" title="Disengage holding torque">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/><path d="M12 9v12"/></svg>
+        <span>Release</span>
       </button>
     </div>
   </section>
 
+  <!-- 5. MEDIA GALLERY -->
   <section class="card gallery-card">
     <div class="section-head gallery-head">
       <div class="title-wrap">
@@ -349,174 +370,182 @@
     </div>
     <div id="galleryGrid" class="gallery-grid"><div class="gallery-empty">Your saved snapshots will appear here.</div></div>
   </section>
+
   <footer><span>HELPING HAND</span> · Camera detection runs locally on this computer · Windows 11 Ready</footer>
 
-  <!-- ==========================================
-       MODAL: MULTI-ANGLE OBJECT LEARNING WIZARD
-       ========================================== -->
-  <div id="learningModal" class="modal-backdrop" style="display:none;">
-    <div class="modal-dialog learning-modal">
-      <div class="modal-head">
-        <div class="modal-title-wrap">
-          <div class="modal-icon-badge">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+  <!-- ==========================================================================
+       SIDE POPUP DRAWER: 6-ANGLE OBJECT LEARNING & AUTOMATIC GRIPPING
+       (MATCHES USER SCREENSHOT media_1793584306000_4ba09616.png EXACTLY)
+       ========================================================================== -->
+  <div id="sideDrawerBackdrop" class="drawer-backdrop" style="display:none;"></div>
+  
+  <aside id="sideDrawer" class="side-drawer" aria-label="Object Learning Drawer">
+    <div class="drawer-header">
+      <div class="drawer-steps-bar">
+        <span class="step-chip active" id="chipStep1">❶ Capture Images</span>
+        <span class="step-arrow">→</span>
+        <span class="step-chip" id="chipStep2">❷ Analyze Grip</span>
+        <span class="step-arrow">→</span>
+        <span class="step-chip" id="chipStep3">❸ Save</span>
+      </div>
+      <button id="closeSideDrawerBtn" type="button" class="close-drawer-btn" title="Close Drawer">&times;</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- STEP 1: CAPTURE IMAGES (6 ANGLES) -->
+      <div id="drawerStep1View" class="drawer-step-view">
+        <div class="drawer-form-group">
+          <label for="drawerObjectName">Object Name <span class="required">*</span></label>
+          <input type="text" id="drawerObjectName" placeholder="e.g. Apple, Bottle, Cup..." value="Apple" />
+        </div>
+
+        <div class="drawer-form-group">
+          <label for="drawerObjectCategory">Category</label>
+          <select id="drawerObjectCategory">
+            <option value="Fruit">Fruit / Spherical</option>
+            <option value="Cylindrical">Bottle / Cylindrical</option>
+            <option value="Handled Mug">Cup / Mug</option>
+            <option value="Flat Device">Mobile / Flat Device</option>
+            <option value="Slender Tool">Pen / Slender Tool</option>
+            <option value="General Object">General Object</option>
+          </select>
+        </div>
+
+        <div class="drawer-section-subhead">
+          <strong>Capture Object from Multiple Angles</strong>
+          <small>Rotate the object in front of the webcam and capture images from required angles.</small>
+        </div>
+
+        <!-- 6 Angle Slots Grid (3 columns x 2 rows) -->
+        <div class="drawer-angles-grid">
+          <!-- 1. Front -->
+          <div class="angle-card" id="slotCardFront" data-slot="Front">
+            <div class="angle-card-preview" id="previewFront">
+              <span class="angle-icon">📷</span>
+              <small>Front</small>
+            </div>
+            <span class="angle-check-badge" id="badgeFront">✓</span>
+            <button type="button" class="btn-slot-snap" data-slot="Front" data-label="Front">Capture Front</button>
           </div>
-          <div>
-            <h3>AI Object Learning & Multi-Angle Capture</h3>
-            <p>Rotate the object manually in front of the webcam to capture 4 viewing angles for accurate 3D grip generation.</p>
+
+          <!-- 2. Back -->
+          <div class="angle-card" id="slotCardBack" data-slot="Back">
+            <div class="angle-card-preview" id="previewBack">
+              <span class="angle-icon">↻ 180°</span>
+              <small>Back</small>
+            </div>
+            <span class="angle-check-badge" id="badgeBack">✓</span>
+            <button type="button" class="btn-slot-snap" data-slot="Back" data-label="Back">Capture Back</button>
+          </div>
+
+          <!-- 3. Left -->
+          <div class="angle-card" id="slotCardLeft" data-slot="Left">
+            <div class="angle-card-preview" id="previewLeft">
+              <span class="angle-icon">↻ 90°</span>
+              <small>Left</small>
+            </div>
+            <span class="angle-check-badge" id="badgeLeft">✓</span>
+            <button type="button" class="btn-slot-snap" data-slot="Left" data-label="Left">Capture Left</button>
+          </div>
+
+          <!-- 4. Right -->
+          <div class="angle-card" id="slotCardRight" data-slot="Right">
+            <div class="angle-card-preview" id="previewRight">
+              <span class="angle-icon">↺ 90°</span>
+              <small>Right</small>
+            </div>
+            <span class="angle-check-badge" id="badgeRight">✓</span>
+            <button type="button" class="btn-slot-snap" data-slot="Right" data-label="Right">Capture Right</button>
+          </div>
+
+          <!-- 5. Top -->
+          <div class="angle-card" id="slotCardTop" data-slot="Top">
+            <div class="angle-card-preview" id="previewTop">
+              <span class="angle-icon">⤹ Top</span>
+              <small>Top</small>
+            </div>
+            <span class="angle-check-badge" id="badgeTop">✓</span>
+            <button type="button" class="btn-slot-snap" data-slot="Top" data-label="Top">Capture Top</button>
+          </div>
+
+          <!-- 6. Bottom -->
+          <div class="angle-card" id="slotCardBottom" data-slot="Bottom">
+            <div class="angle-card-preview" id="previewBottom">
+              <span class="angle-icon">⤴ Base</span>
+              <small>Bottom</small>
+            </div>
+            <span class="angle-check-badge" id="badgeBottom">✓</span>
+            <button type="button" class="btn-slot-snap" data-slot="Bottom" data-label="Bottom">Capture Bottom</button>
           </div>
         </div>
-        <button id="closeLearnModalBtn" type="button" class="close-modal-btn">&times;</button>
+
+        <div class="angles-status-banner">
+          <div class="progress-pill-green" id="anglesProgressPill">
+            <span class="pill-check">✓</span>
+            <span id="anglesProgressText">0/6 Angles Captured</span>
+          </div>
+          <button type="button" id="snapQuickAllBtn" class="button tertiary" style="font-size: 11px;">Snap Current View to All</button>
+        </div>
+
+        <button type="button" id="btnAnalyzeGrip" class="button primary btn-analyze-full">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>Analyze Grip (AI)</span>
+        </button>
       </div>
 
-      <div class="modal-body">
-        <!-- Step 1: Object Identity -->
-        <div class="learn-form-row">
-          <div class="form-group flex-2">
-            <label for="learnObjectNameInput">Object Name <span class="required">*</span></label>
-            <input type="text" id="learnObjectNameInput" placeholder="e.g. Water Bottle, Coffee Mug, ID Card" required />
-          </div>
-          <div class="form-group flex-1">
-            <label for="learnObjectCustomInput">Custom Nickname</label>
-            <input type="text" id="learnObjectCustomInput" placeholder="e.g. 500ml Flask (Desk)" />
-          </div>
-          <div class="form-group flex-1">
-            <label for="learnObjectCategory">Category</label>
-            <select id="learnObjectCategory">
-              <option value="Cylindrical Object">Cylindrical Object</option>
-              <option value="Handled Object">Handled Object / Mug</option>
-              <option value="Spherical Object">Spherical Object</option>
-              <option value="Flat Rectangular">Flat Rectangular</option>
-              <option value="Slender Tool">Slender Tool / Pen</option>
-              <option value="Fragile Object">Fragile Glassware</option>
-              <option value="General Object">General Object</option>
-            </select>
+      <!-- STEP 2: ANALYZE GRIP & CALIBRATION SLIDERS -->
+      <div id="drawerStep2View" class="drawer-step-view" style="display:none;">
+        <div class="analysis-result-header">
+          <div class="meta-row">
+            <div><small>Object</small><strong id="resSummaryName">Apple</strong></div>
+            <div><small>Shape</small><strong id="resSummaryShape">Spherical / Round</strong></div>
+            <div><small>Grip Type</small><strong id="resSummaryGrip" class="blue-val">Power Grip</strong></div>
           </div>
         </div>
 
-        <!-- Step 2: Multi-Angle Capture Studio -->
-        <div class="capture-studio-section">
-          <div class="studio-head">
-            <strong>Multi-Angle Camera Capture (4 Angles)</strong>
-            <span class="guide-note">Rotate object manually in front of webcam and click capture for each slot.</span>
+        <div class="drawer-sliders-box">
+          <div class="sliders-subhead">
+            <strong>Calibrate 5-Finger Servo Angles (0°–180°)</strong>
+            <small>Adjust angles to fine-tune physical finger grip limits</small>
           </div>
 
-          <div class="angle-slots-grid">
-            <!-- Angle 1: Front -->
-            <div class="angle-slot" id="slotFront">
-              <div class="slot-badge">Angle 1: Front View</div>
-              <div class="slot-preview" id="previewFront">
-                <span class="placeholder-icon">📷</span>
-                <small>Facing Camera</small>
-              </div>
-              <div class="slot-actions">
-                <button type="button" class="btn-slot-cap" data-angle="Front View" data-slot="Front">Capture Front</button>
-                <button type="button" class="btn-slot-del" data-slot="Front" style="display:none;" title="Delete">&times;</button>
-              </div>
-            </div>
-
-            <!-- Angle 2: Left -->
-            <div class="angle-slot" id="slotLeft">
-              <div class="slot-badge">Angle 2: Left View</div>
-              <div class="slot-preview" id="previewLeft">
-                <span class="placeholder-icon">↻ 90°</span>
-                <small>Rotate 90° Right</small>
-              </div>
-              <div class="slot-actions">
-                <button type="button" class="btn-slot-cap" data-angle="Left View" data-slot="Left">Capture Left</button>
-                <button type="button" class="btn-slot-del" data-slot="Left" style="display:none;" title="Delete">&times;</button>
-              </div>
-            </div>
-
-            <!-- Angle 3: Right -->
-            <div class="angle-slot" id="slotRight">
-              <div class="slot-badge">Angle 3: Right View</div>
-              <div class="slot-preview" id="previewRight">
-                <span class="placeholder-icon">↺ 90°</span>
-                <small>Show Right Side</small>
-              </div>
-              <div class="slot-actions">
-                <button type="button" class="btn-slot-cap" data-angle="Right View" data-slot="Right">Capture Right</button>
-                <button type="button" class="btn-slot-del" data-slot="Right" style="display:none;" title="Delete">&times;</button>
-              </div>
-            </div>
-
-            <!-- Angle 4: Top -->
-            <div class="angle-slot" id="slotTop">
-              <div class="slot-badge">Angle 4: Top View</div>
-              <div class="slot-preview" id="previewTop">
-                <span class="placeholder-icon">⤹ Rim</span>
-                <small>Tilt Top Rim / Cap</small>
-              </div>
-              <div class="slot-actions">
-                <button type="button" class="btn-slot-cap" data-angle="Top View" data-slot="Top">Capture Top</button>
-                <button type="button" class="btn-slot-del" data-slot="Top" style="display:none;" title="Delete">&times;</button>
-              </div>
-            </div>
+          <div class="drawer-slider-row">
+            <div class="sl-label">Thumb <b id="valDrawerSlider0">110°</b></div>
+            <input type="range" id="drawerSlider0" min="0" max="180" value="110" />
           </div>
+          <div class="drawer-slider-row">
+            <div class="sl-label">Index <b id="valDrawerSlider1">125°</b></div>
+            <input type="range" id="drawerSlider1" min="0" max="180" value="125" />
+          </div>
+          <div class="drawer-slider-row">
+            <div class="sl-label">Middle <b id="valDrawerSlider2">130°</b></div>
+            <input type="range" id="drawerSlider2" min="0" max="180" value="130" />
+          </div>
+          <div class="drawer-slider-row">
+            <div class="sl-label">Ring <b id="valDrawerSlider3">125°</b></div>
+            <input type="range" id="drawerSlider3" min="0" max="180" value="125" />
+          </div>
+          <div class="drawer-slider-row">
+            <div class="sl-label">Little <b id="valDrawerSlider4">115°</b></div>
+            <input type="range" id="drawerSlider4" min="0" max="180" value="115" />
+          </div>
+
+          <button type="button" id="btnPreview3dDrawer" class="button secondary" style="width:100%; margin-top: 10px;">
+            <span>👁 Preview 3D Grip Posture</span>
+          </button>
         </div>
 
-        <!-- Step 3: AI Grip Analysis -->
-        <div class="grip-analysis-section">
-          <div class="analysis-btn-wrap">
-            <button id="runAiAnalysisBtn" type="button" class="button primary btn-analyze">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3L12 3z"/></svg>
-              <span>Analyze Captured Angles & Generate Grip Profile</span>
-            </button>
-          </div>
-
-          <div id="analysisResultCard" class="analysis-result-card" style="display:none;">
-            <div class="metrics-row">
-              <div class="metric-card"><span class="m-label">Estimated Shape</span><strong id="resShape" class="m-val">—</strong></div>
-              <div class="metric-card"><span class="m-label">Relative Size</span><strong id="resSize" class="m-val">—</strong></div>
-              <div class="metric-card"><span class="m-label">Orientation</span><strong id="resOrient" class="m-val">—</strong></div>
-              <div class="metric-card"><span class="m-label">Recommended Grip</span><strong id="resGripType" class="m-val highlight">—</strong></div>
-            </div>
-
-            <div class="calibrated-sliders-wrap">
-              <div class="sliders-head">
-                <strong>Calibrated 5-Finger Servo Angles (0°–180°)</strong>
-                <small>Adjust individual sliders to fine-tune physical finger grip limits</small>
-              </div>
-              <div class="mini-sliders-grid">
-                <div class="mini-slider-col">
-                  <div class="sl-tag">Thumb <span id="valLearn0">120°</span></div>
-                  <input type="range" id="learnSlider0" min="0" max="180" value="120" />
-                </div>
-                <div class="mini-slider-col">
-                  <div class="sl-tag">Index <span id="valLearn1">110°</span></div>
-                  <input type="range" id="learnSlider1" min="0" max="180" value="110" />
-                </div>
-                <div class="mini-slider-col">
-                  <div class="sl-tag">Middle <span id="valLearn2">115°</span></div>
-                  <input type="range" id="learnSlider2" min="0" max="180" value="115" />
-                </div>
-                <div class="mini-slider-col">
-                  <div class="sl-tag">Ring <span id="valLearn3">115°</span></div>
-                  <input type="range" id="learnSlider3" min="0" max="180" value="115" />
-                </div>
-                <div class="mini-slider-col">
-                  <div class="sl-tag">Little <span id="valLearn4">105°</span></div>
-                  <input type="range" id="learnSlider4" min="0" max="180" value="105" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="modal-foot">
-        <button id="previewGrip3dBtn" type="button" class="button secondary" style="display:none;">Preview Grip in 3D</button>
-        <div class="foot-actions-right">
-          <button id="cancelLearnBtn" type="button" class="button secondary">Cancel</button>
-          <button id="saveLearnedObjectBtn" type="button" class="button primary" disabled>Save Object & Grip Profile</button>
+        <div class="drawer-footer-split">
+          <button type="button" id="btnBackToAngles" class="button secondary">← Back</button>
+          <button type="button" id="btnSaveToLibrary" class="button primary">💾 Save to Library</button>
         </div>
       </div>
     </div>
-  </div>
-
+  </aside>
 </main>
+
 <script src="{{ url_for('static', filename='vendor/three.min.js') }}"></script>
-<script src="{{ url_for('static', filename='hand_3d.js') }}?v=1"></script>
-<script src="{{ url_for('static', filename='app.js') }}?v=29" defer></script>
-</body></html>
+<script src="{{ url_for('static', filename='hand_3d.js') }}?v=40"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=40" defer></script>
+</body>
+</html>

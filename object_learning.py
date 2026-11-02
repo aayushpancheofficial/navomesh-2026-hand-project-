@@ -2,7 +2,7 @@
 NAVONMESH 26 - AI Prosthetic Hand Control System
 Object Learning, Multi-Angle Capture, and Automatic Gripping Engine
 
-Manages SQLite database storage for learned objects, multi-angle imagery,
+Manages SQLite database storage for learned objects, 6-angle imagery (Front, Back, Left, Right, Top, Bottom),
 heuristic & vision-based grip profile analysis, and calibrated servo angle mappings.
 """
 
@@ -75,10 +75,27 @@ def init_database():
     if count == 0:
         seed_objects = [
             {
-                "name": "Water Bottle",
-                "custom_name": "Kinley / Standard Bottle",
+                "name": "Apple",
+                "custom_name": "Fresh Apple",
+                "category": "Spherical Object",
+                "grip_type": "Power Grip",
+                "thumb_angle": 110,
+                "index_angle": 125,
+                "middle_angle": 130,
+                "ring_angle": 125,
+                "little_angle": 115,
+                "estimated_shape": "Spherical / Round",
+                "estimated_size": "Medium",
+                "orientation": "Vertical",
+                "confidence": 96.0,
+                "notes": "5-finger enclosing power grip cradling the spherical fruit.",
+                "thumbnail_url": "/static/images/helping_hand.png"
+            },
+            {
+                "name": "Bottle",
+                "custom_name": "Water Bottle",
                 "category": "Cylindrical Object",
-                "grip_type": "Cylindrical Power Grip",
+                "grip_type": "Cylindrical Grip",
                 "thumb_angle": 120,
                 "index_angle": 110,
                 "middle_angle": 115,
@@ -92,12 +109,12 @@ def init_database():
                 "thumbnail_url": "/static/images/helping_hand.png"
             },
             {
-                "name": "Coffee Cup",
-                "custom_name": "Ceramic Mug / Paper Cup",
-                "category": "Handled / Cylindrical Object",
-                "grip_type": "Cylindrical Wrap or Top-Rim Pinch",
-                "thumb_angle": 88,
-                "index_angle": 82,
+                "name": "Cup",
+                "custom_name": "Ceramic Mug",
+                "category": "Handled Object",
+                "grip_type": "Pinch Grip",
+                "thumb_angle": 85,
+                "index_angle": 80,
                 "middle_angle": 85,
                 "ring_angle": 85,
                 "little_angle": 80,
@@ -109,10 +126,10 @@ def init_database():
                 "thumbnail_url": "/static/images/helping_hand.png"
             },
             {
-                "name": "Mobile Phone",
+                "name": "Mobile",
                 "custom_name": "Smartphone",
-                "category": "Flat Rectangular Device",
-                "grip_type": "Precision / Pinch Grip",
+                "category": "Flat Rectangular",
+                "grip_type": "Parallel Grip",
                 "thumb_angle": 70,
                 "index_angle": 65,
                 "middle_angle": 60,
@@ -122,41 +139,7 @@ def init_database():
                 "estimated_size": "Medium",
                 "orientation": "Vertical",
                 "confidence": 90.0,
-                "notes": "Lateral pinch grasp along bezel edges.",
-                "thumbnail_url": "/static/images/helping_hand.png"
-            },
-            {
-                "name": "Apple / Fruit",
-                "custom_name": "Round Fruit",
-                "category": "Spherical Small Object",
-                "grip_type": "Spherical 5-Finger Enclosing Grip",
-                "thumb_angle": 100,
-                "index_angle": 95,
-                "middle_angle": 95,
-                "ring_angle": 95,
-                "little_angle": 95,
-                "estimated_shape": "Spherical",
-                "estimated_size": "Medium",
-                "orientation": "Normal",
-                "confidence": 88.0,
-                "notes": "Even 5-finger spherical cradle with balanced contact pressures.",
-                "thumbnail_url": "/static/images/helping_hand.png"
-            },
-            {
-                "name": "Pen / Marker",
-                "custom_name": "Writing Tool",
-                "category": "Thin Cylindrical Tool",
-                "grip_type": "Tripod / Precision Pinch Grip",
-                "thumb_angle": 50,
-                "index_angle": 45,
-                "middle_angle": 35,
-                "ring_angle": 15,
-                "little_angle": 15,
-                "estimated_shape": "Slender / Tool",
-                "estimated_size": "Small",
-                "orientation": "Diagonal / Tilted",
-                "confidence": 85.0,
-                "notes": "Thumb, index and middle pinch with ring and little flexed clear.",
+                "notes": "Parallel pinch grasp along bezel edges.",
                 "thumbnail_url": "/static/images/helping_hand.png"
             }
         ]
@@ -189,8 +172,8 @@ def analyze_image_geometry(img: np.ndarray, bbox: Optional[List[int]] = None) ->
             "size": "Medium",
             "orientation": "Normal",
             "aspect_ratio": 1.0,
-            "grip_type": "Cylindrical Power Grip",
-            "angles": [90, 90, 90, 90, 90]
+            "grip_type": "Power Grip",
+            "angles": [110, 125, 130, 125, 115]
         }
 
     h, w = img.shape[:2]
@@ -233,20 +216,19 @@ def analyze_image_geometry(img: np.ndarray, bbox: Optional[List[int]] = None) ->
             circularity = (4 * np.pi * c_area) / (perimeter * perimeter)
 
         if len(largest_contour) >= 5:
-            # Fit minimum area rectangle to estimate precise orientation
             rect = cv2.minAreaRect(largest_contour)
             (rx, ry), (rw, rh), r_angle = rect
             orientation_deg = round(r_angle, 1)
 
     # Shape Classification
-    if aspect_ratio >= 1.6:
+    if aspect_ratio >= 1.5:
         shape = "Cylindrical / Elongated"
     elif aspect_ratio <= 0.6:
         shape = "Horizontal Flat / Wide"
-    elif circularity >= 0.70:
-        shape = "Spherical / Compact Round"
+    elif circularity >= 0.65 or (0.8 <= aspect_ratio <= 1.25):
+        shape = "Spherical / Round"
     else:
-        shape = "Rectangular / Prism"
+        shape = "Rectangular / Compact"
 
     # Size Classification
     if area_fraction < 0.06:
@@ -266,24 +248,21 @@ def analyze_image_geometry(img: np.ndarray, bbox: Optional[List[int]] = None) ->
         orient_str = f"Tilted ({abs(orientation_deg):.0f}° angle)"
 
     # Recommended Grip Type and Calibrated Angles
-    if "Cylindrical" in shape or aspect_ratio >= 1.6:
-        grip_type = "Cylindrical Power Grip"
-        # Standard wrap around cylinder (e.g. 110-120 degrees)
+    if "Spherical" in shape:
+        grip_type = "Power Grip"
+        angles = [110, 125, 130, 125, 115]
+    elif "Cylindrical" in shape or aspect_ratio >= 1.5:
+        grip_type = "Cylindrical Grip"
         angles = [120, 110, 115, 115, 105]
-    elif "Spherical" in shape:
-        grip_type = "Spherical 5-Finger Enclosing Grip"
-        # Enclosing sphere
-        angles = [100, 95, 95, 95, 95]
     elif "Small" in size_class or aspect_ratio <= 0.4:
-        grip_type = "Precision Pinch Grip"
-        # Precision pinch: thumb + index active, others recessed
-        angles = [55, 50, 40, 20, 20]
+        grip_type = "Pinch Grip"
+        angles = [85, 80, 85, 85, 80]
     elif "Flat" in shape:
-        grip_type = "Lateral / Key Pinch Grip"
-        angles = [70, 65, 55, 40, 35]
+        grip_type = "Parallel Grip"
+        angles = [70, 65, 60, 45, 40]
     else:
-        grip_type = "Adaptive Palmar Wrap"
-        angles = [90, 85, 85, 80, 80]
+        grip_type = "Adaptive Power Grip"
+        angles = [100, 95, 95, 90, 85]
 
     return {
         "shape": shape,
@@ -310,7 +289,7 @@ def list_learned_objects() -> List[Dict[str, Any]]:
         FROM learned_objects o
         LEFT JOIN object_images i ON o.id = i.object_id
         GROUP BY o.id
-        ORDER BY o.updated_at DESC
+        ORDER BY o.id ASC
     """)
     rows = cursor.fetchall()
     objects = []
@@ -357,7 +336,7 @@ def get_learned_object(object_id: int) -> Optional[Dict[str, Any]]:
 
 def save_learned_object(data: Dict[str, Any], images: Optional[List[Dict[str, str]]] = None) -> int:
     """
-    Create a new learned object with grip profile and multi-angle images in SQLite.
+    Create a new learned object with grip profile and 6-angle images in SQLite.
     """
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -365,7 +344,7 @@ def save_learned_object(data: Dict[str, Any], images: Optional[List[Dict[str, st
     name = data.get("name", "Unnamed Object").strip()
     custom_name = data.get("custom_name", name).strip()
     category = data.get("category", "General Object")
-    grip_type = data.get("grip_type", "Cylindrical Power Grip")
+    grip_type = data.get("grip_type", "Power Grip")
 
     angles = data.get("servo_angles", [90, 90, 90, 90, 90])
     if len(angles) < 5:
@@ -380,7 +359,7 @@ def save_learned_object(data: Dict[str, Any], images: Optional[List[Dict[str, st
     estimated_shape = data.get("estimated_shape", "Unknown")
     estimated_size = data.get("estimated_size", "Medium")
     orientation = data.get("orientation", "Normal")
-    confidence = float(data.get("confidence", 85.0))
+    confidence = float(data.get("confidence", 95.0))
     notes = data.get("notes", "")
     thumbnail_url = data.get("thumbnail_url", "/static/images/helping_hand.png")
 
@@ -408,8 +387,7 @@ def save_learned_object(data: Dict[str, Any], images: Optional[List[Dict[str, st
             VALUES (?, ?, ?)
             """, (new_id, angle_label, image_path))
 
-            # Set first image as thumbnail if default
-            if idx == 0 and image_path:
+            if (idx == 0 or angle_label.lower() == "front") and image_path:
                 cursor.execute("UPDATE learned_objects SET thumbnail_url = ? WHERE id = ?", (image_path, new_id))
 
     conn.commit()
@@ -465,13 +443,12 @@ def delete_learned_object(object_id: int) -> bool:
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Get image paths to clean up files
     cursor.execute("SELECT image_path FROM object_images WHERE object_id = ?", (object_id,))
     rows = cursor.fetchall()
     for r in rows:
         path = r["image_path"]
         if path.startswith("/static/"):
-            rel_path = path[1:]  # remove leading slash
+            rel_path = path[1:]
             abs_path = os.path.join(os.path.dirname(__file__), rel_path)
             if os.path.exists(abs_path):
                 try:
