@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NAVONMESH 26 | AI Prosthetic Hand Control System</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=45">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=50">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Manrope:wght@200..800&display=swap" rel="stylesheet">
@@ -31,7 +31,7 @@
         <span class="status-card-divider"></span>
         <div class="status-card-body">
           <span class="status-card-title">Webcam</span>
-          <span class="status-card-state"><span id="headerCameraText">Inactive</span><i class="status-dot" id="headerCameraDot"></i></span>
+          <span class="status-card-state"><span id="headerCameraText"><span id="cameraHeader">Inactive</span></span><i class="status-dot" id="headerCameraDot" data-alias="cameraDot"></i></span>
         </div>
       </div>
 
@@ -42,7 +42,7 @@
         <span class="status-card-divider"></span>
         <div class="status-card-body">
           <span class="status-card-title">AI Detection</span>
-          <span class="status-card-state"><span id="headerAiText">Standby</span><i class="status-dot" id="headerAiDot"></i></span>
+          <span class="status-card-state"><span id="headerAiText"><span id="aiHeader">Standby</span></span><i class="status-dot" id="headerAiDot" data-alias="aiDot"></i></span>
         </div>
       </div>
 
@@ -54,8 +54,8 @@
         <div class="status-card-body">
           <span class="status-card-title" id="arduinoHeaderTitle">Arduino (COM3)</span>
           <span class="status-card-state">
-            <span id="connectionState">Offline</span>
-            <i class="status-dot red" id="connectionDot"></i>
+            <span id="connectionState"><span id="portHeader">Offline</span></span>
+            <i class="status-dot red" id="connectionDot" data-alias="arduinoDot"></i>
           </span>
         </div>
       </div>
@@ -546,6 +546,6 @@
 
 <script src="{{ url_for('static', filename='vendor/three.min.js') }}"></script>
 <script src="{{ url_for('static', filename='hand_3d.js') }}?v=40"></script>
-<script src="{{ url_for('static', filename='app.js') }}?v=45" defer></script>
+<script src="{{ url_for('static', filename='app.js') }}?v=50" defer></script>
 </body>
 </html>

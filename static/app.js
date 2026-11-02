@@ -56,7 +56,7 @@ function updateGaugeDisplay(customAvg) {
     if (s) angles.push(Number(s.value));
   }
   const avg = customAvg !== undefined ? customAvg : (angles.length ? Math.round(angles.reduce((a, b) => a + b, 0) / angles.length) : 0);
-  const gText = el("gaugeAngleText");
+  const gText = el("mainGaugeDegree") || el("gaugeAngleText");
   if (gText) gText.textContent = `${avg}°`;
   const arc = el("gaugeArcFill");
   if (arc) {
@@ -68,14 +68,14 @@ function updateGaugeDisplay(customAvg) {
 
 function setConnectionState(isConnected, port, message) {
   connected = Boolean(isConnected);
-  const badge = el("portHeader");
+  const badge = el("connectionState") || el("portHeader");
   if (badge) badge.textContent = connected ? "Connected" : "Offline";
-  const portLabel = el("arduinoPortLabel");
+  const portLabel = el("arduinoHeaderTitle") || el("arduinoPortLabel");
   if (portLabel) portLabel.textContent = `Arduino (${port || "COM3"})`;
-  const card = badge?.closest(".status-card") || badge?.closest(".status-chip");
+  const card = el("arduinoCard") || badge?.closest(".status-card") || badge?.closest(".status-chip");
   card?.classList.toggle("connected", connected);
   card?.classList.toggle("offline", !connected);
-  const dot = el("arduinoDot");
+  const dot = el("connectionDot") || el("arduinoDot");
   if (dot) dot.className = `status-dot ${connected ? "active" : "red"}`;
   if (connectionKnown && connected !== setConnectionState.previous) speak(connected ? "Arduino connected" : "Arduino disconnected");
   setConnectionState.previous = connected;
@@ -112,7 +112,7 @@ async function updateStatus() {
             window.RoboticHand3D.setFingerAngle(i, angle);
           }
         }
-        el(`angle${i}`).textContent = `${angle}°`;
+        (el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`)))?.textContent = `${angle}°`;
       });
     }
     if (Array.isArray(data.enabled)) {
@@ -186,22 +186,40 @@ function setCameraMode(mode) {
 }
 
 function setCameraState(active, message) {
-  el("cameraPanel").classList.toggle("active", active);
-  el("cameraStatus").textContent = active ? (cameraMode === "usb" ? "Live · USB Cam" : "Live · Browser Cam") : "Camera off";
-  el("cameraStatus").className = `pill ${active ? "online" : "muted"}`;
-  el("cameraHeader").textContent = active ? "Active" : "Inactive";
-  el("cameraDot").className = `dot ${active ? "" : "red"}`;
-  el("cameraToggle").innerHTML = active
-    ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> <span>Stop Camera</span>'
-    : '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg> <span>Start Camera</span>';
+  const panel = el("cameraPanel");
+  if (panel) panel.classList.toggle("active", active);
 
-  const camCard = el("cameraHeader").closest(".status-card") || el("cameraHeader").closest(".status-chip");
+  const status = el("cameraStatus");
+  if (status) {
+    status.textContent = active ? (cameraMode === "usb" ? "Live · USB Cam" : "Live · Browser Cam") : "Camera off";
+    status.className = `pill ${active ? "online" : "muted"}`;
+  }
+
+  const header = el("headerCameraText") || el("cameraHeader");
+  if (header) header.textContent = active ? "Active" : "Inactive";
+
+  const dot = el("headerCameraDot") || el("cameraDot");
+  if (dot) dot.className = `status-dot ${active ? "active" : "red"}`;
+
+  const camCard = el("cameraCard") || header?.closest(".status-card") || header?.closest(".status-chip");
   camCard?.classList.toggle("connected", active);
   camCard?.classList.toggle("active", active);
-  if (el("cameraDot")) el("cameraDot").className = `status-dot ${active ? "active" : ""}`;
 
-  el("cameraOverlayText").textContent = active ? (cameraMode === "usb" ? "LIVE · USB CAM" : "LIVE · BROWSER CAM") : "CAMERA OFF";
-  el("captureButton").disabled = !active;
+  const toggle = el("cameraToggle");
+  if (toggle) {
+    toggle.innerHTML = active
+      ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> <span id="cameraToggleText">Stop Camera</span>'
+      : '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"/></svg> <span id="cameraToggleText">Start Camera</span>';
+  }
+
+  const overlay = el("cameraOverlayText");
+  if (overlay) {
+    overlay.textContent = active ? (cameraMode === "usb" ? "LIVE · USB CAM" : "LIVE · BROWSER CAM") : "CAMERA OFF";
+  }
+
+  const capBtn = el("captureButton");
+  if (capBtn) capBtn.disabled = !active;
+
   if (message) showMessage(message);
 }
 
@@ -305,10 +323,12 @@ async function toggleCamera() {
 // ==========================================
 
 async function startDetection() {
-  el("aiHeader").textContent = "Loading…";
-  if (el("aiDot")) el("aiDot").className = "status-dot amber";
-  el("modelPill").textContent = "Loading model";
-  el("modelPill").className = "pill busy";
+  const aiHead = el("headerAiText") || el("aiHeader");
+  if (aiHead) aiHead.textContent = "Loading…";
+  const aiDot = el("headerAiDot") || el("aiDot");
+  if (aiDot) aiDot.className = "status-dot amber";
+  const pill = el("modelPill");
+  if (pill) { pill.textContent = "Loading model"; pill.className = "pill busy"; }
 
   try {
     const response = await fetch("/api/detection/start", { method: "POST" });
@@ -316,23 +336,23 @@ async function startDetection() {
     if (!response.ok || !data.success) throw new Error(data.error || `Detector could not start (${response.status})`);
 
     detectionActive = true;
-    el("aiHeader").textContent = "Ready";
-    if (el("aiDot")) el("aiDot").className = "status-dot active";
-    (el("aiHeader").closest(".status-card") || el("aiHeader").closest(".status-chip"))?.classList.add("connected");
-    el("modelPill").textContent = "Ready";
-    el("modelPill").className = "pill online";
+    if (aiHead) aiHead.textContent = "Ready";
+    if (aiDot) aiDot.className = "status-dot active";
+    const aiCard = el("aiCard") || aiHead?.closest(".status-card") || aiHead?.closest(".status-chip");
+    aiCard?.classList.add("connected");
+    if (pill) { pill.textContent = "Ready"; pill.className = "pill online"; }
 
-    showMessage("AI tracking and detector active. Point camera at an object.");
+    showMessage("AI tracking active. Point webcam at any object.");
     updateControls();
     scheduleDetection(0);
   } catch (error) {
     detectionActive = false;
-    el("aiHeader").textContent = "Unavailable";
-    if (el("aiDot")) el("aiDot").className = "status-dot red";
-    (el("aiHeader").closest(".status-card") || el("aiHeader").closest(".status-chip"))?.classList.remove("connected");
-    el("modelPill").textContent = "Unavailable";
-    el("modelPill").className = "pill muted";
-    showMessage(`Object detector error: ${error.message}`);
+    if (aiHead) aiHead.textContent = "Unavailable";
+    if (aiDot) aiDot.className = "status-dot red";
+    const aiCard = el("aiCard") || aiHead?.closest(".status-card") || aiHead?.closest(".status-chip");
+    aiCard?.classList.remove("connected");
+    if (pill) { pill.textContent = "Unavailable"; pill.className = "pill muted"; }
+    showMessage(`Object detector info: ${error.message}`);
     updateControls();
   }
 }
@@ -342,11 +362,14 @@ async function stopDetection() {
   detectionBusy = false;
   clearTimeout(detectionTimer);
   detectionTimer = null;
-  el("aiHeader").textContent = "Standby";
-  if (el("aiDot")) el("aiDot").className = "status-dot";
-  (el("aiHeader").closest(".status-card") || el("aiHeader").closest(".status-chip"))?.classList.remove("connected");
-  el("modelPill").textContent = "Standby";
-  el("modelPill").className = "pill muted";
+  const aiHead = el("headerAiText") || el("aiHeader");
+  if (aiHead) aiHead.textContent = "Standby";
+  const aiDot = el("headerAiDot") || el("aiDot");
+  if (aiDot) aiDot.className = "status-dot";
+  const aiCard = el("aiCard") || aiHead?.closest(".status-card") || aiHead?.closest(".status-chip");
+  aiCard?.classList.remove("connected");
+  const pill = el("modelPill");
+  if (pill) { pill.textContent = "Standby"; pill.className = "pill muted"; }
   try { await fetch("/api/detection/stop", { method: "POST" }); } catch (_) {}
 }
 
@@ -946,7 +969,7 @@ el("applyAiAnglesBtn")?.addEventListener("click", async () => {
     if (sl) {
       sl.value = angle;
       updateSliderVisuals(sl);
-      el(`angle${i}`).textContent = `${angle}°`;
+      (el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`)))?.textContent = `${angle}°`;
       sendAction("SET", { index: i, angle });
     }
   }
@@ -990,7 +1013,7 @@ async function grabDetectedObject() {
     const sl = el(`slider${i}`);
     if (sl) {
       sl.value = angles[i];
-      const valEl = el(`angleValue${i}`) || el(`angle${i}`);
+      const valEl = el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`));
       if (valEl) valEl.textContent = `${angles[i]}°`;
     }
   }
@@ -1021,7 +1044,7 @@ async function releaseHandObject() {
     const sl = el(`slider${i}`);
     if (sl) {
       sl.value = 0;
-      const valEl = el(`angleValue${i}`) || el(`angle${i}`);
+      const valEl = el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`));
       if (valEl) valEl.textContent = "0°";
     }
   }
@@ -1200,7 +1223,7 @@ for (let i = 0; i < SERVO_COUNT; i += 1) {
 
   slider.addEventListener("input", () => {
     const angle = Number(slider.value);
-    el(`angle${i}`).textContent = `${angle}°`;
+    (el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`)))?.textContent = `${angle}°`;
     updateSliderVisuals(slider);
     // Real-time synchronization with 3D Robotic Hand model
     if (window.RoboticHand3D) {
@@ -1257,7 +1280,7 @@ el("openButton")?.addEventListener("click", async () => {
       sl.value = 30;
       updateSliderVisuals(sl);
     }
-    const an = el(`angle${i}`);
+    const an = el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`));
     if (an) an.textContent = "30°";
   }
   updateGaugeDisplay(30);
@@ -1275,7 +1298,7 @@ el("closeButton")?.addEventListener("click", async () => {
       sl.value = 150;
       updateSliderVisuals(sl);
     }
-    const an = el(`angle${i}`);
+    const an = el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`));
     if (an) an.textContent = "150°";
   }
   updateGaugeDisplay(150);
@@ -1296,7 +1319,7 @@ el("resetButton")?.addEventListener("click", async () => {
       sl.value = 0;
       updateSliderVisuals(sl);
     }
-    const an = el(`angle${i}`);
+    const an = el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`));
     if (an) an.textContent = "0°";
   }
   updateGaugeDisplay(0);
@@ -1828,7 +1851,7 @@ function selectObjectProfile(objId) {
   // Sync main servo sliders and badges
   for (let i = 0; i < 5; i++) {
     const sl = el(`slider${i}`);
-    const badge = el(`angleValue${i}`) || el(`angle${i}`);
+    const badge = el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`));
     if (sl) {
       sl.value = currentGripAngles[i];
       updateSliderVisuals(sl);
@@ -1887,7 +1910,7 @@ async function executeGrip() {
   // Update main sliders
   for (let i = 0; i < 5; i++) {
     const sl = el(`slider${i}`);
-    const badge = el(`angleValue${i}`) || el(`angle${i}`);
+    const badge = el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`));
     if (sl) {
       sl.value = angles[i];
       updateSliderVisuals(sl);
@@ -1919,7 +1942,7 @@ async function executeRelease() {
   // Reset sliders
   for (let i = 0; i < 5; i++) {
     const sl = el(`slider${i}`);
-    const badge = el(`angleValue${i}`) || el(`angle${i}`);
+    const badge = el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`));
     if (sl) {
       sl.value = 0;
       updateSliderVisuals(sl);
@@ -1938,3 +1961,12 @@ el("releaseButton")?.addEventListener("click", executeRelease);
 
 // Load objects from SQLite on startup
 loadObjectsLibrary();
+
+// Additional Control Hooks for new UI IDs
+el("cameraStopBtn")?.addEventListener("click", async () => {
+  if (detectionActive || cameraStream) {
+    await toggleCamera();
+  }
+});
+el("movementStop")?.addEventListener("click", () => runCommand("STOP", "Emergency stop sent."));
+el("movementRelease")?.addEventListener("click", releaseHandObject);

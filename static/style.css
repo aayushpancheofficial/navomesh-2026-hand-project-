@@ -2572,3 +2572,308 @@
   flex: 1 !important;
   min-height: 42px !important;
 }
+
+
+/* ==========================================================================
+   GLOBAL SCROLL & SERVO MOTOR CONTROL TWO-COLUMN LAYOUT FIX
+   ========================================================================== */
+
+html {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  scroll-behavior: smooth !important;
+}
+
+body {
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  min-height: 100vh !important;
+}
+
+.app-shell {
+  max-width: 1440px !important;
+  margin: 0 auto !important;
+  padding-bottom: 50px !important;
+}
+
+/* Ensure backdrop never blocks scrolling when drawer is closed */
+.drawer-backdrop {
+  display: none !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  position: fixed !important;
+  inset: 0 !important;
+  background: rgba(15, 23, 42, 0.45) !important;
+  backdrop-filter: blur(4px) !important;
+  z-index: 9998 !important;
+  transition: opacity 0.25s ease !important;
+}
+
+.drawer-backdrop.open,
+.drawer-backdrop.active {
+  display: block !important;
+  pointer-events: auto !important;
+  opacity: 1 !important;
+}
+
+/* Servo Motor Control Card Layout */
+.servo-card {
+  margin-bottom: 24px !important;
+  overflow: visible !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 20px !important;
+  padding: 20px 24px !important;
+}
+
+.servo-split-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr) !important;
+  gap: 24px !important;
+  align-items: stretch !important;
+  margin-top: 14px !important;
+}
+
+@media (max-width: 960px) {
+  .servo-split-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.servo-controls-col {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+.servo-rows-container {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.servo-control-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 10px 16px !important;
+  min-height: 52px !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.02) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.servo-control-row:hover {
+  border-color: #93c5fd !important;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05) !important;
+}
+
+.finger-dot {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 50% !important;
+  background: #2563eb !important;
+  flex-shrink: 0 !important;
+}
+
+.finger-name {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  min-width: 65px !important;
+  flex-shrink: 0 !important;
+}
+
+.slider-wrapper {
+  flex: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  margin: 0 10px !important;
+}
+
+.slider-wrapper input[type="range"] {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 100% !important;
+  height: 6px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(to right, #2563eb 0%, #2563eb var(--track-fill, 0%), #e2e8f0 var(--track-fill, 0%), #e2e8f0 100%) !important;
+  outline: none !important;
+  cursor: pointer !important;
+}
+
+.slider-wrapper input[type="range"]::-webkit-slider-thumb {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  border: 3.5px solid #2563eb !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35) !important;
+  cursor: pointer !important;
+  transition: transform 0.1s ease !important;
+}
+
+.slider-wrapper input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15) !important;
+}
+
+.angle-badge {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 999px !important;
+  padding: 5px 14px !important;
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  min-width: 52px !important;
+  text-align: center !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  flex-shrink: 0 !important;
+}
+
+/* iOS Toggle Switch */
+.toggle-switch {
+  position: relative !important;
+  display: inline-block !important;
+  width: 44px !important;
+  height: 24px !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+}
+
+.toggle-switch input {
+  opacity: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+}
+
+.toggle-switch .slider {
+  position: absolute !important;
+  inset: 0 !important;
+  background-color: #cbd5e1 !important;
+  border-radius: 999px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.toggle-switch .slider:before {
+  position: absolute !important;
+  content: "" !important;
+  height: 18px !important;
+  width: 18px !important;
+  left: 3px !important;
+  bottom: 3px !important;
+  background-color: #ffffff !important;
+  border-radius: 50% !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.toggle-switch input:checked + .slider {
+  background-color: #2563eb !important;
+}
+
+.toggle-switch input:checked + .slider:before {
+  transform: translateX(20px) !important;
+}
+
+/* Right 3D Robotic Hand Card */
+.hand-gauge-card {
+  background: #ffffff !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 20px !important;
+  padding: 16px 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  position: relative !important;
+  min-height: 310px !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03) !important;
+}
+
+.gauge-head {
+  width: 100% !important;
+  text-align: center !important;
+  padding-bottom: 4px !important;
+}
+
+.gauge-degree-display {
+  font-family: 'DM Sans', sans-serif !important;
+  font-size: 34px !important;
+  font-weight: 800 !important;
+  color: #2563eb !important;
+  letter-spacing: -0.5px !important;
+  display: inline-block !important;
+  line-height: 1 !important;
+}
+
+.hand-3d-wrapper {
+  width: 100% !important;
+  height: 230px !important;
+  min-height: 210px !important;
+  position: relative !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  background: radial-gradient(circle at center, #ffffff 45%, #f1f5f9 100%) !important;
+}
+
+.hand-3d-wrapper canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+.hand-3d-controls-overlay {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  padding-top: 10px !important;
+  gap: 10px !important;
+}
+
+.btn-3d-pill {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  border-radius: 999px !important;
+  padding: 5px 12px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.btn-3d-pill:hover {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.hint-3d {
+  font-size: 11px !important;
+  color: #94a3b8 !important;
+  white-space: nowrap !important;
+}
+
+.movement-controls {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  margin-top: 18px !important;
+  padding-top: 16px !important;
+  border-top: 1px solid #f1f5f9 !important;
+}
+
+.movement-controls .button {
+  flex: 1 1 140px !important;
+  min-height: 48px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}

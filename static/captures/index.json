@@ -1,5 +1,32 @@
 [
   {
+    "id": "fc7ae798ca124b0a86e1cb607329bbc9",
+    "filename": "capture_20261102_080148_a019bb.jpg",
+    "url": "/static/captures/capture_20261102_080148_a019bb.jpg",
+    "label": "Camera snapshot",
+    "confidence": null,
+    "type": "image",
+    "created_at": "2026-11-02T08:01+05:30"
+  },
+  {
+    "id": "977547e08e2f40d687239024aaefc3a1",
+    "filename": "capture_20261102_075402_181ec4.jpg",
+    "url": "/static/captures/capture_20261102_075402_181ec4.jpg",
+    "label": "Camera snapshot",
+    "confidence": null,
+    "type": "image",
+    "created_at": "2026-11-02T07:54+05:30"
+  },
+  {
+    "id": "99beb2a24e13486abc7291fdae774dc6",
+    "filename": "capture_20261102_075352_461edd.jpg",
+    "url": "/static/captures/capture_20261102_075352_461edd.jpg",
+    "label": "Camera snapshot",
+    "confidence": null,
+    "type": "image",
+    "created_at": "2026-11-02T07:53+05:30"
+  },
+  {
     "id": "3e743081064b4c9b9cd7e289517ccb12",
     "filename": "capture_20261102_065855_c4fad3.jpg",
     "url": "/static/captures/capture_20261102_065855_c4fad3.jpg",
