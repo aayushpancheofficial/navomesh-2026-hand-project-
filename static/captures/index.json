@@ -1,5 +1,41 @@
 [
   {
+    "id": "54cf1e4005794eb1a8db9b10c1e0713b",
+    "filename": "capture_20261102_062140_7ce619.jpg",
+    "url": "/static/captures/capture_20261102_062140_7ce619.jpg",
+    "label": "Camera snapshot",
+    "confidence": null,
+    "type": "image",
+    "created_at": "2026-11-02T06:21+05:30"
+  },
+  {
+    "id": "9af8eb1e8b544498b578a137da11d105",
+    "filename": "capture_20261102_060734_8ec058.jpg",
+    "url": "/static/captures/capture_20261102_060734_8ec058.jpg",
+    "label": "Camera snapshot",
+    "confidence": null,
+    "type": "image",
+    "created_at": "2026-11-02T06:07+05:30"
+  },
+  {
+    "id": "56a0b85283d246fdbddd25489a2c9e5b",
+    "filename": "capture_20261102_060629_44758b.jpg",
+    "url": "/static/captures/capture_20261102_060629_44758b.jpg",
+    "label": "Camera snapshot",
+    "confidence": null,
+    "type": "image",
+    "created_at": "2026-11-02T06:06+05:30"
+  },
+  {
+    "id": "e581ec373caa435990de2d48b6e52b3b",
+    "filename": "capture_20261102_053645_4561b2.jpg",
+    "url": "/static/captures/capture_20261102_053645_4561b2.jpg",
+    "label": "Camera snapshot",
+    "confidence": null,
+    "type": "image",
+    "created_at": "2026-11-02T05:36+05:30"
+  },
+  {
     "id": "85e6180be5644915b3a215bff456ff72",
     "filename": "capture_20261102_043601_9085b9.jpg",
     "url": "/static/captures/capture_20261102_043601_9085b9.jpg",
@@ -7,15 +43,6 @@
     "confidence": 75.8,
     "type": "image",
     "created_at": "2026-11-02T04:36+05:30"
-  },
-  {
-    "id": "9dc31ffdc73347579616883b96a9b647",
-    "filename": "capture_20261102_043153_65bff4.jpg",
-    "url": "/static/captures/capture_20261102_043153_65bff4.jpg",
-    "label": "Person",
-    "confidence": 85.8,
-    "type": "image",
-    "created_at": "2026-11-02T04:31+05:30"
   },
   {
     "id": "8c2db578d5864911a159df741ac1392d",

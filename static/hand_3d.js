@@ -770,3 +770,4 @@
   // Export singleton to global scope
   window.RoboticHand3D = new RoboticHand3DViewer();
 })();
+
