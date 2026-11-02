@@ -95,39 +95,51 @@ function updateControls() {
   const grB = el("graspButton"); if (grB) grB.disabled = stopped;
 }
 
+let statusErrorCount = 0;
+
 async function updateStatus() {
   try {
     const response = await fetch("/api/status", { cache: "no-store" });
     if (!response.ok) throw new Error(`Status request failed (${response.status})`);
     const data = await response.json();
+    statusErrorCount = 0;
     stopped = Boolean(data.stopped);
     setConnectionState(data.connected, data.port, data.message);
     if (Array.isArray(data.angles)) {
       data.angles.forEach((angle, i) => {
         const sl = el(`slider${i}`);
-        if (document.activeElement !== sl) {
+        if (document.activeElement !== sl && sl) {
           sl.value = angle;
           updateSliderVisuals(sl);
           if (window.RoboticHand3D) {
             window.RoboticHand3D.setFingerAngle(i, angle);
           }
         }
-        (el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`)))?.textContent = `${angle}°`;
+        const valEl = el(`angleValue${i}`) || el(`angle${i}`);
+        if (valEl) valEl.textContent = `${angle}°`;
       });
     }
     if (Array.isArray(data.enabled)) {
       data.enabled.forEach((enabled, i) => {
-        el(`enable${i}`).checked = enabled;
-        if (window.RoboticHand3D) {
-          window.RoboticHand3D.setFingerEnabled(i, enabled);
+        const cb = el(`enable${i}`);
+        if (cb) {
+          cb.checked = enabled;
+          if (window.RoboticHand3D) {
+            window.RoboticHand3D.setFingerEnabled(i, enabled);
+          }
         }
       });
     }
-    if (!connected) showMessage(data.message || "Arduino is offline. Camera and AI tracking work without the hand controller.");
+    if (!connected && !stopped) {
+      showMessage(data.message || "Arduino is offline. Camera and AI tracking work without the hand controller.");
+    }
   } catch (_) {
-    stopped = false;
-    setConnectionState(false, "—", "Cannot reach Flask server. Check that it is running.");
-    showMessage("Cannot reach Flask server. Check the server window.");
+    statusErrorCount++;
+    if (statusErrorCount >= 4) {
+      stopped = false;
+      setConnectionState(false, "—", "Cannot reach Flask server. Check that it is running.");
+      showMessage("Cannot reach Flask server. Check the server window.");
+    }
   }
 }
 
@@ -686,6 +698,12 @@ function getFocusedDetection() {
 
 function showDetections(detections) {
   const primary = getFocusedDetection();
+  if (primary && primary.thumbnail) {
+    const avatarImg = el("targetThumbImg");
+    if (avatarImg) {
+      avatarImg.src = `data:image/jpeg;base64,${primary.thumbnail}`;
+    }
+  }
   const thumbEl = el("objectThumb");
   if (primary && primary.thumbnail) {
     thumbEl.innerHTML = `<img src="data:image/jpeg;base64,${primary.thumbnail}" alt="${escapeHtml(primary.label || 'Target')}" style="width:100%; height:100%; object-fit:cover; border-radius:10px;" />`;
@@ -1461,28 +1479,83 @@ el("btnCamStopTop")?.addEventListener("click", async () => {
 // --- Step 2 & 3: Multi-Angle Capture (Front, Back, Left, Right, Top, Bottom) ---
 function captureCurrentFrameDataUrl() {
   const video = el("cameraVideo");
+  if (!video || !cameraStream || video.readyState < 2) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 320;
+    canvas.height = 320;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(0, 0, 320, 320);
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "bold 20px system-ui";
+    ctx.textAlign = "center";
+    ctx.fillText("OBJECT CAMERA ANGLE", 160, 150);
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "14px system-ui";
+    ctx.fillText("NAVONMESH 26 VISION", 160, 180);
+    return canvas.toDataURL("image/jpeg", 0.85);
+  }
+
+  const vw = video.videoWidth || 640;
+  const vh = video.videoHeight || 480;
+
+  // CROP SPECIFICALLY TO LOCKED TARGET OBJECT
+  const target = getFocusedDetection();
+  let cropX = 0, cropY = 0, cropW = vw, cropH = vh;
+
+  if (target && Array.isArray(target.bbox) && target.bbox.length === 4) {
+    const detW = (frameCanvas && frameCanvas.width) ? frameCanvas.width : vw;
+    const detH = (frameCanvas && frameCanvas.height) ? frameCanvas.height : vh;
+    const scaleX = vw / detW;
+    const scaleY = vh / detH;
+
+    const [bx1, by1, bx2, by2] = target.bbox;
+    const x1 = Math.min(bx1, bx2) * scaleX;
+    const y1 = Math.min(by1, by2) * scaleY;
+    const x2 = Math.max(bx1, bx2) * scaleX;
+    const y2 = Math.max(by1, by2) * scaleY;
+
+    const bw = Math.max(30, x2 - x1);
+    const bh = Math.max(30, y2 - y1);
+    // Add 16% padding around the locked object for clean visual boundary
+    const padX = bw * 0.16;
+    const padY = bh * 0.16;
+
+    cropX = Math.max(0, x1 - padX);
+    cropY = Math.max(0, y1 - padY);
+    cropW = Math.min(vw - cropX, bw + padX * 2);
+    cropH = Math.min(vh - cropY, bh + padY * 2);
+  } else if (manualRoi && Array.isArray(manualRoi)) {
+    const [rx1, ry1, rx2, ry2] = manualRoi;
+    cropX = Math.max(0, rx1 * vw);
+    cropY = Math.max(0, ry1 * vh);
+    cropW = Math.min(vw - cropX, (rx2 - rx1) * vw);
+    cropH = Math.min(vh - cropY, (ry2 - ry1) * vh);
+  }
+
   const canvas = document.createElement("canvas");
-  const w = (video && video.videoWidth) ? video.videoWidth : 640;
-  const h = (video && video.videoHeight) ? video.videoHeight : 480;
-  canvas.width = w;
-  canvas.height = h;
+  const targetDim = 320;
+  canvas.width = targetDim;
+  canvas.height = targetDim;
   const ctx = canvas.getContext("2d");
 
-  if (video && cameraStream && video.readyState >= 2) {
-    ctx.drawImage(video, 0, 0, w, h);
+  // Clean pure background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, targetDim, targetDim);
+
+  // Center the cropped object maintaining aspect ratio
+  const aspect = cropW / Math.max(1, cropH);
+  let dw = targetDim, dh = targetDim, dx = 0, dy = 0;
+  if (aspect > 1) {
+    dh = targetDim / aspect;
+    dy = (targetDim - dh) / 2;
   } else {
-    // Generate clean illustrated canvas snapshot
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "#38bdf8";
-    ctx.font = "bold 24px system-ui";
-    ctx.textAlign = "center";
-    ctx.fillText("OBJECT CAMERA ANGLE", w / 2, h / 2 - 10);
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "16px system-ui";
-    ctx.fillText("NAVONMESH 26 VISION", w / 2, h / 2 + 25);
+    dw = targetDim * aspect;
+    dx = (targetDim - dw) / 2;
   }
-  return canvas.toDataURL("image/jpeg", 0.85);
+
+  ctx.drawImage(video, cropX, cropY, cropW, cropH, dx, dy, dw, dh);
+  return canvas.toDataURL("image/jpeg", 0.90);
 }
 
 function captureSlot(slotName) {
@@ -1970,3 +2043,36 @@ el("cameraStopBtn")?.addEventListener("click", async () => {
 });
 el("movementStop")?.addEventListener("click", () => runCommand("STOP", "Emergency stop sent."));
 el("movementRelease")?.addEventListener("click", releaseHandObject);
+
+
+// Reset all 6 angle slots in the Object Learning Drawer
+function resetAllAngleSlots() {
+  const icons = {
+    Front: "📷",
+    Back: "↻ 180°",
+    Left: "↻ 90°",
+    Right: "↺ 90°",
+    Top: "⤹ Top",
+    Bottom: "⤴ Base"
+  };
+
+  ANGLE_SLOTS.forEach(slot => {
+    capturedAngles[slot] = null;
+    const preview = el(`preview${slot}`);
+    if (preview) {
+      preview.innerHTML = `<span class="angle-icon">${icons[slot] || "📷"}</span><small>${slot}</small>`;
+    }
+    const badge = el(`badge${slot}`);
+    if (badge) {
+      badge.classList.remove("captured");
+      badge.style.display = "none";
+    }
+    const card = el(`slotCard${slot}`);
+    if (card) card.classList.remove("has-image");
+  });
+
+  updateAnglesProgress();
+  showMessage("All 6 captured angle slots have been reset. Ready for new capture.");
+}
+
+el("resetAnglesBtn")?.addEventListener("click", resetAllAngleSlots);

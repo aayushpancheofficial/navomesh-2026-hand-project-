@@ -1,5 +1,32 @@
 [
   {
+    "id": "95a3096cb2a34f4da36e3e5407fd4c53",
+    "filename": "capture_20261102_080526_2d65f0.jpg",
+    "url": "/static/captures/capture_20261102_080526_2d65f0.jpg",
+    "label": "Mobile Phone",
+    "confidence": 47.7,
+    "type": "image",
+    "created_at": "2026-11-02T08:05+05:30"
+  },
+  {
+    "id": "c234f627fc114ee682a29093b4a3579d",
+    "filename": "capture_20261102_080355_314bf8.jpg",
+    "url": "/static/captures/capture_20261102_080355_314bf8.jpg",
+    "label": "Chair",
+    "confidence": 50.4,
+    "type": "image",
+    "created_at": "2026-11-02T08:03+05:30"
+  },
+  {
+    "id": "2b040cf54e6e4c5aad8b9f0ec593a034",
+    "filename": "capture_20261102_080351_d0eade.jpg",
+    "url": "/static/captures/capture_20261102_080351_d0eade.jpg",
+    "label": "Cup / Mug",
+    "confidence": 61.7,
+    "type": "image",
+    "created_at": "2026-11-02T08:03+05:30"
+  },
+  {
     "id": "fc7ae798ca124b0a86e1cb607329bbc9",
     "filename": "capture_20261102_080148_a019bb.jpg",
     "url": "/static/captures/capture_20261102_080148_a019bb.jpg",

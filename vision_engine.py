@@ -175,15 +175,15 @@ class VisionEngine:
     person/human exclusion, manual ROI extraction, optional OpenAI Vision,
     grasp assessment integration, FPS calculation, and detection history.
     """
-    def __init__(self, model_name: str = DEFAULT_MODEL_PATH, default_conf: float = 0.25):
+    def __init__(self, model_name: str = DEFAULT_MODEL_PATH, default_conf: float = 0.18):
         self.model_name = model_name
-        self.conf_threshold = default_conf
+        self.conf_threshold = 0.18
         self.model = None
         self.model_status = "Not Initialized"
         self.model_error = None
         self.device = "cpu"
         self.lock = threading.Lock()
-        self.tracker = CentroidTracker(max_lost=15, iou_threshold=0.18)
+        self.tracker = CentroidTracker(max_lost=25, iou_threshold=0.14)
 
         # Person / Human safety exclusion (Default: True for prosthetic hand safety)
         self.exclude_person = os.getenv("EXCLUDE_PERSON", "true").lower() in ("true", "1", "yes")

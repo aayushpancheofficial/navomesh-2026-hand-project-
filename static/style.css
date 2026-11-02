@@ -2877,3 +2877,48 @@ body {
   font-size: 14px !important;
   font-weight: 700 !important;
 }
+
+
+/* Drawer Angle Action Buttons & Reset */
+.angles-status-banner {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  margin: 14px 0 16px !important;
+  flex-wrap: wrap !important;
+}
+
+.angles-btn-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.btn-reset-angles {
+  padding: 6px 14px !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  border-radius: 9px !important;
+  min-height: 36px !important;
+  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #475569 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.btn-reset-angles:hover {
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+  border-color: #fca5a5 !important;
+}
+
+.btn-snap-all {
+  min-height: 36px !important;
+  padding: 6px 12px !important;
+  border-radius: 9px !important;
+}
