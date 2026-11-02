@@ -987,7 +987,7 @@ el("applyAiAnglesBtn")?.addEventListener("click", async () => {
     if (sl) {
       sl.value = angle;
       updateSliderVisuals(sl);
-      (el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`)))?.textContent = `${angle}°`;
+      const anEl = el(`angleValue${i}`) || el(`angle${i}`); if (anEl) anEl.textContent = `${angle}°`;
       sendAction("SET", { index: i, angle });
     }
   }
@@ -1241,7 +1241,7 @@ for (let i = 0; i < SERVO_COUNT; i += 1) {
 
   slider.addEventListener("input", () => {
     const angle = Number(slider.value);
-    (el(`angleValue${i}`) || (el(`angleValue${i}`) || el(`angle${i}`)))?.textContent = `${angle}°`;
+    const anEl = el(`angleValue${i}`) || el(`angle${i}`); if (anEl) anEl.textContent = `${angle}°`;
     updateSliderVisuals(slider);
     // Real-time synchronization with 3D Robotic Hand model
     if (window.RoboticHand3D) {
